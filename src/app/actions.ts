@@ -4,14 +4,8 @@ import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import type { Incident } from "@/types";
 
-// Bounding box for Ukraine
-const UKRAINE_BOUNDS = {
-  lat: { min: 44.3, max: 52.4 },
-  lon: { min: 22.1, max: 40.2 },
-};
-
 /**
- * Generates 10 random mock incidents within Ukraine's borders and saves them to Firestore.
+ * Generates 10 random mock incidents across the globe and saves them to Firestore.
  * This is useful for initial testing and development.
  */
 export async function generateMockData() {
@@ -25,12 +19,9 @@ export async function generateMockData() {
     const incidentsCollection = adminDb.collection("incidents");
 
     for (let i = 0; i < 10; i++) {
-      const lat =
-        Math.random() * (UKRAINE_BOUNDS.lat.max - UKRAINE_BOUNDS.lat.min) +
-        UKRAINE_BOUNDS.lat.min;
-      const lon =
-        Math.random() * (UKRAINE_BOUNDS.lon.max - UKRAINE_BOUNDS.lon.min) +
-        UKRAINE_BOUNDS.lon.min;
+       // Generate random coordinates globally
+      const lat = Math.random() * 180 - 90;
+      const lon = Math.random() * 360 - 180;
 
       const newIncident: Omit<Incident, 'id'> = {
         latitude: lat,
@@ -54,7 +45,7 @@ export async function generateMockData() {
 }
 
 /**
- * Fetches real-time fire and thermal anomaly data from NASA's FIRMS API for Ukraine
+ * Fetches real-time fire and thermal anomaly data from NASA's FIRMS API for the entire world
  * and stores it in the 'incidents' Firestore collection.
  * 
  * NOTE: To run this automatically every 30 minutes in production, you would set up
@@ -74,9 +65,8 @@ export async function fetchAndStoreFirmsData() {
     return { success: false, message };
   }
 
-  // API fetches data for Ukraine for the last 24 hours.
-  // See FIRMS API docs: https://firms.modaps.eosdis.nasa.gov/api/
-  const url = `https://firms.modaps.eosdis.nasa.gov/api/country/csv/${apiKey}/VIIRS_SNPP_NRT/UKR/1`;
+  // API fetches data for the entire world for the last 24 hours.
+  const url = `https://firms.modaps.eosdis.nasa.gov/api/v1/nrt/world/csv/${apiKey}/VIIRS_SNPP_NRT/1`;
 
   try {
     const response = await fetch(url);
@@ -86,12 +76,12 @@ export async function fetchAndStoreFirmsData() {
 
     const csvText = await response.text();
     const lines = csvText.split("\n");
-    const headers = lines[0].split(",");
 
-    if (lines.length < 2) {
-      return { success: true, message: "No new FIRMS incidents found." };
+    if (lines.length < 2 || !lines[0].includes('latitude')) {
+      return { success: true, message: "No new FIRMS incidents found or invalid CSV format." };
     }
     
+    const headers = lines[0].split(",");
     // Remove header line
     lines.shift(); 
 
@@ -104,25 +94,25 @@ export async function fetchAndStoreFirmsData() {
         const values = line.split(",");
         const data: { [key: string]: string } = {};
         headers.forEach((header, index) => {
-            data[header] = values[index];
+            data[header.trim()] = values[index];
         });
 
         const latitude = parseFloat(data.latitude);
         const longitude = parseFloat(data.longitude);
         const acq_date = data.acq_date;
-        const acq_time = data.acq_time.padStart(4, '0'); // Ensure HHMM format
+        const acq_time_str = data.acq_time ? data.acq_time.padStart(4, '0') : ''; // Ensure HHMM format
 
-        if (isNaN(latitude) || isNaN(longitude) || !acq_date || !acq_time) continue;
-
+        if (isNaN(latitude) || isNaN(longitude) || !acq_date || !acq_time_str) continue;
+        
         const year = parseInt(acq_date.substring(0, 4));
         const month = parseInt(acq_date.substring(5, 7)) - 1; // JS months are 0-indexed
         const day = parseInt(acq_date.substring(8, 10));
-        const hour = parseInt(acq_time.substring(0, 2));
-        const minute = parseInt(acq_time.substring(2, 4));
+        const hour = parseInt(acq_time_str.substring(0, 2));
+        const minute = parseInt(acq_time_str.substring(2, 4));
         const timestamp = Timestamp.fromDate(new Date(Date.UTC(year, month, day, hour, minute)));
 
         // Create a unique ID to prevent duplicates
-        const docId = `${acq_date}-${acq_time}-${latitude.toFixed(4)}-${longitude.toFixed(4)}`;
+        const docId = `${acq_date}-${acq_time_str}-${latitude.toFixed(4)}-${longitude.toFixed(4)}`;
 
         const newIncident: Omit<Incident, 'id'> = {
             latitude,

@@ -15,7 +15,7 @@ export interface Flight {
     latitude: number;
     longitude: number;
     direction: number;
-    flight_iata: string;
+    flight_iata: string | null;
     airline_name: string;
     dep_iata: string;
     arr_iata: string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
@@ -8,30 +8,11 @@ import type { Incident, Flight } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
-import { SituationalAwarenessSidebar } from './situational-awareness-sidebar';
-
-import type { FeatureCollection, Point, LineString } from 'geojson';
-import { point as turfPoint } from '@turf/helpers';
-import turfDistance from '@turf/distance';
-import pointToLineDistance from '@turf/point-to-line-distance';
-import { sub, isAfter } from 'date-fns';
-
-import powerPlantsData from '@/data/ukraine-power-plants.geojson';
-import railwaysData from '@/data/ukraine-railways.geojson';
-
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
   loading: () => <Skeleton className="absolute inset-0 z-0 bg-background" />,
 });
-
-const powerPlants = powerPlantsData as FeatureCollection<Point, {name: string, type: string}>;
-const railways = railwaysData as FeatureCollection<LineString, {name: string}>;
-
-const UKRAINE_BOUNDS = {
-  lat: { min: 44.3, max: 52.4 },
-  lon: { min: 22.1, max: 40.2 },
-};
 
 export default function SentinelDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -41,13 +22,6 @@ export default function SentinelDashboard() {
   const { toast } = useToast();
   
   const [openWeatherMapApiKey, setOpenWeatherMapApiKey] = useState<string | undefined>();
-
-  const [affectedRailIds, setAffectedRailIds] = useState<Set<string>>(new Set());
-  const [affectedPowerIds, setAffectedPowerIds] = useState<Set<string>>(new Set());
-
-  // New state for sidebar
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
 
   const fetchFlights = useCallback(async () => {
     setIsFetchingFlights(true);
@@ -75,15 +49,10 @@ export default function SentinelDashboard() {
         throw new Error(data?.error?.message || `Aviationstack API request failed with status: ${response.status}`);
       }
       
-      const ukraineFlights = data.data
-        .filter((flight: any) => flight.live &&
-            flight.live.latitude >= UKRAINE_BOUNDS.lat.min &&
-            flight.live.latitude <= UKRAINE_BOUNDS.lat.max &&
-            flight.live.longitude >= UKRAINE_BOUNDS.lon.min &&
-            flight.live.longitude <= UKRAINE_BOUNDS.lon.max
-        )
+      const allFlights = data.data
+        .filter((flight: any) => flight.live) // Only show flights with live data
         .map((flight: any): Flight => ({
-          id: flight.flight.iata,
+          id: flight.flight.iata || `${flight.departure.iata}-${flight.arrival.iata}-${flight.airline.iata}`,
           latitude: flight.live.latitude,
           longitude: flight.live.longitude,
           direction: flight.live.direction,
@@ -93,10 +62,10 @@ export default function SentinelDashboard() {
           arr_iata: flight.arrival.iata,
         }));
       
-      setFlights(ukraineFlights);
+      setFlights(allFlights);
       toast({
         title: "Flights Updated",
-        description: `Found ${ukraineFlights.length} active flights over Ukraine.`,
+        description: `Found ${allFlights.length} active flights.`,
       });
 
     } catch (error) {
@@ -117,7 +86,8 @@ export default function SentinelDashboard() {
 
   useEffect(() => {
     const incidentsCollection = collection(firestore, 'incidents');
-    const q = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(100));
+    // Fetch more incidents for a global view
+    const q = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(500));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newIncidents = snapshot.docs.map((doc: DocumentData) => ({
@@ -145,82 +115,6 @@ export default function SentinelDashboard() {
     return () => unsubscribe();
   }, [fetchFlights]);
 
-  useEffect(() => {
-    if (!incidents.length) return;
-    
-    const newAffectedRailIds = new Set<string>();
-    const newAffectedPowerIds = new Set<string>();
-
-    const recentIncidents = incidents.filter(incident => 
-      isAfter(incident.timestamp.toDate(), sub(new Date(), { hours: 24 }))
-    );
-
-    for (const incident of recentIncidents) {
-      if (!incident.longitude || !incident.latitude) continue;
-
-      const incidentPoint = turfPoint([incident.longitude, incident.latitude]);
-
-      // Proximity check for railways
-      for (const rail of railways.features) {
-        if (!rail.id || !rail.geometry) continue;
-        const distance = pointToLineDistance(incidentPoint, rail.geometry, { units: 'kilometers' });
-        if (distance < 5) {
-          newAffectedRailIds.add(rail.id as string);
-        }
-      }
-
-      // Proximity check for power plants
-      for (const power of powerPlants.features) {
-        if (!power.id || !power.geometry) continue;
-        const distance = turfDistance(incidentPoint, power.geometry, { units: 'kilometers' });
-        if (distance < 5) {
-          newAffectedPowerIds.add(power.id as string);
-        }
-      }
-    }
-
-    setAffectedRailIds(newAffectedRailIds);
-    setAffectedPowerIds(newAffectedPowerIds);
-
-  }, [incidents]);
-
-  const handleIncidentSelect = (incident: Incident) => {
-    setSelectedIncident(incident);
-    setIsSidebarOpen(true);
-  };
-  
-  const handleSidebarToggle = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
-
-  // Memoize nearby infrastructure for the selected incident
-  const { nearbyPowerPlants, nearbyRailwaysCount } = useMemo(() => {
-    if (!selectedIncident) return { nearbyPowerPlants: [], nearbyRailwaysCount: 0 };
-    
-    const incidentPoint = turfPoint([selectedIncident.longitude, selectedIncident.latitude]);
-    const powerPlantsNearby: string[] = [];
-    let railwaysNearbyCount = 0;
-
-    for (const power of powerPlants.features) {
-      if (!power.id || !power.geometry || !power.properties?.name) continue;
-      const distance = turfDistance(incidentPoint, power.geometry, { units: 'kilometers' });
-      if (distance < 5) {
-        powerPlantsNearby.push(power.properties.name);
-      }
-    }
-    
-    for (const rail of railways.features) {
-      if (!rail.id || !rail.geometry) continue;
-      const distance = pointToLineDistance(incidentPoint, rail.geometry, { units: 'kilometers' });
-      if (distance < 5) {
-        railwaysNearbyCount++;
-      }
-    }
-    
-    return { nearbyPowerPlants: powerPlantsNearby, nearbyRailwaysCount: railwaysNearbyCount };
-  }, [selectedIncident]);
-
-
   const latestTwentyIncidents = incidents.slice(0, 20);
 
   return (
@@ -229,26 +123,12 @@ export default function SentinelDashboard() {
         incidents={latestTwentyIncidents} 
         onRefreshFlights={fetchFlights} 
         isFetchingFlights={isFetchingFlights}
-        onToggleSidebar={handleSidebarToggle}
       />
       <main className="flex-1 relative">
         <MapView 
             incidents={incidents} 
             flights={flights}
-            powerPlants={powerPlants}
-            railways={railways}
-            affectedPowerIds={affectedPowerIds}
-            affectedRailIds={affectedRailIds}
             openWeatherMapApiKey={openWeatherMapApiKey}
-            onIncidentSelect={handleIncidentSelect}
-            selectedIncidentId={selectedIncident?.id || null}
-        />
-        <SituationalAwarenessSidebar 
-          isOpen={isSidebarOpen}
-          onOpenChange={setIsSidebarOpen}
-          incident={selectedIncident}
-          nearbyPowerPlants={nearbyPowerPlants}
-          nearbyRailwaysCount={nearbyRailwaysCount}
         />
       </main>
     </div>

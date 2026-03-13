@@ -4,64 +4,23 @@ import { MapContainer, TileLayer, LayersControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { formatDistanceToNow } from 'date-fns';
 import type { Incident, Flight } from '@/types';
-import type { FeatureCollection, Point, LineString } from 'geojson';
+
+const planeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" 24" fill="none" stroke="yellow" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`;
 
 interface MapViewProps {
   incidents: Incident[];
   flights: Flight[];
-  powerPlants: FeatureCollection<Point, {name: string, type: string}>;
-  railways: FeatureCollection<LineString, {name: string}>;
-  affectedPowerIds: Set<string>;
-  affectedRailIds: Set<string>;
   openWeatherMapApiKey?: string;
-  onIncidentSelect: (incident: Incident) => void;
-  selectedIncidentId: string | null;
 }
-
-// Base icon for power plants
-const powerPlantIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="cyan" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>'),
-    iconSize: [20, 20],
-    iconAnchor: [10, 10],
-});
-
-// Icon for affected power plants
-const affectedPowerPlantIcon = new L.Icon({
-    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="orange" stroke="orange" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-flash"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>'),
-    iconSize: [24, 24],
-    iconAnchor: [12, 12],
-});
-
-const planeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" 24" fill="none" stroke="yellow" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`;
-
 
 export default function MapView({ 
     incidents, 
     flights, 
-    powerPlants, 
-    railways, 
-    affectedPowerIds, 
-    affectedRailIds, 
-    openWeatherMapApiKey,
-    onIncidentSelect,
-    selectedIncidentId
+    openWeatherMapApiKey
 }: MapViewProps) {
-  const position: [number, number] = [48.3794, 31.1656]; // Ukraine center
-  const zoom = 6;
-
-  const railStyle = (feature?: GeoJSON.Feature) => {
-    if (feature && affectedRailIds.has(feature.id as string)) {
-        return { color: 'hsl(var(--primary))', weight: 3, className: 'animate-flash' };
-    }
-    return { color: '#555', weight: 1.5, opacity: 0.8, dashArray: '5, 5' };
-  };
-
-  const onEachPowerPlant = (feature: GeoJSON.Feature<Point, {name: string, type: string}>, layer: L.Layer) => {
-    if (feature.properties) {
-        const { name, type } = feature.properties;
-        layer.bindPopup(`<h3 class="font-bold text-base mb-1 text-cyan-400">${type} Plant</h3><p>${name}</p>`);
-    }
-  }
+  // Center on a global view
+  const position: [number, number] = [20, 0];
+  const zoom = 2;
 
   return (
     <>
@@ -79,7 +38,6 @@ export default function MapView({
             <LayersControl position="topright">
                 <LayersControl.Overlay checked name="Fires (NASA)">
                     <GeoJSON 
-                      key={`incidents-${selectedIncidentId}`} // Re-render when selection changes
                       data={{
                           type: 'FeatureCollection',
                           features: incidents.map(incident => ({
@@ -93,28 +51,20 @@ export default function MapView({
                       }}
                       pointToLayer={(feature, latlng) => {
                         const incident = feature.properties as Incident;
-                        const isSelected = incident.id === selectedIncidentId;
                         return new L.CircleMarker(latlng, {
-                          radius: isSelected ? 10 : 5 + Math.min((incident.frp || 0) / 40, 12),
-                          color: isSelected ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
-                          fillColor: isSelected ? 'hsl(var(--primary))' : 'hsl(var(--destructive))',
-                          fillOpacity: isSelected ? 0.9 : 0.6,
-                          weight: isSelected ? 3 : 1.5,
-                          className: isSelected ? 'animate-pulse' : '',
+                          radius: 3 + Math.min((incident.frp || 0) / 50, 8),
+                          color: 'hsl(var(--destructive))',
+                          fillColor: 'hsl(var(--destructive))',
+                          fillOpacity: 0.6,
+                          weight: 1,
                         });
                       }}
                       onEachFeature={(feature, layer) => {
                         const incident = feature.properties as Incident;
-                        // Replace popup with a click handler to open the sidebar
-                        layer.on({
-                          click: () => onIncidentSelect(incident)
-                        });
-                        
-                        // Keep a tooltip for hover effect
                         layer.bindTooltip(`
                             <div class="text-sm font-mono">
                                 <h3 class="font-bold text-base mb-1 text-primary">Thermal Anomaly</h3>
-                                <p>Click to view details</p>
+                                <p><strong>Intensity (FRP):</strong> ${incident.frp || 'N/A'}</p>
                                 <p class="text-xs mt-2 text-muted-foreground">
                                     ${formatDistanceToNow(incident.timestamp.toDate(), { addSuffix: true })}
                                 </p>
@@ -151,7 +101,7 @@ export default function MapView({
                             const flight = feature.properties as Flight;
                             layer.bindPopup(`
                                 <div class="text-sm font-mono">
-                                    <h3 class="font-bold text-base mb-1 text-yellow-400">Flight: ${flight.flight_iata}</h3>
+                                    <h3 class="font-bold text-base mb-1 text-yellow-400">Flight: ${flight.flight_iata || 'N/A'}</h3>
                                     <p><strong>Airline:</strong> ${flight.airline_name}</p>
                                     <p><strong>Route:</strong> ${flight.dep_iata} &rarr; ${flight.arr_iata}</p>
                                     <p class="text-xs mt-2 text-muted-foreground">
@@ -160,22 +110,6 @@ export default function MapView({
                                 </div>
                             `);
                         }}
-                    />
-                </LayersControl.Overlay>
-                <LayersControl.Overlay checked name="Railways">
-                    <GeoJSON key="railways" data={railways} style={railStyle} />
-                </LayersControl.Overlay>
-                <LayersControl.Overlay checked name="Power Grid">
-                    <GeoJSON 
-                        key="power"
-                        data={powerPlants} 
-                        pointToLayer={(feature, latlng) => {
-                            const isAffected = affectedPowerIds.has(feature.id as string);
-                            return L.marker(latlng, { 
-                                icon: isAffected ? affectedPowerPlantIcon : powerPlantIcon 
-                            });
-                        }}
-                        onEachFeature={onEachPowerPlant}
                     />
                 </LayersControl.Overlay>
                 {openWeatherMapApiKey && (
