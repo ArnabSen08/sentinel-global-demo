@@ -3,7 +3,6 @@
 import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
 import { formatDistanceToNow } from 'date-fns';
 import type { Incident } from '@/types';
-import 'leaflet/dist/leaflet.css';
 
 interface MapViewProps {
   incidents: Incident[];
