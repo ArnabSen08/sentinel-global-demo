@@ -40,11 +40,14 @@ export function GlobeView({ incidents }: GlobeViewProps) {
     scene.add(dirLight);
 
     // Globe
-    const globeTexture = new THREE.TextureLoader().load(PlaceHolderImages[0].imageUrl);
+    const textureLoader = new THREE.TextureLoader();
+    const globeTexture = textureLoader.load(PlaceHolderImages.find(img => img.id === 'globe-texture')!.imageUrl);
+    const bumpTexture = textureLoader.load(PlaceHolderImages.find(img => img.id === 'globe-bump-map')!.imageUrl);
     const globeGeometry = new THREE.SphereGeometry(GLOBE_RADIUS, 64, 64);
     const globeMaterial = new THREE.MeshStandardMaterial({
         map: globeTexture,
-        color: 0xaaaaaa, // Muted color to blend with dark texture
+        bumpMap: bumpTexture,
+        bumpScale: 0.05,
         metalness: 0.3,
         roughness: 0.7,
     });
@@ -99,6 +102,7 @@ export function GlobeView({ incidents }: GlobeViewProps) {
       globeGeometry.dispose();
       globeMaterial.dispose();
       globeTexture.dispose();
+      bumpTexture.dispose();
       incidentsRef.current.forEach(spike => {
         if(spike instanceof THREE.Mesh) {
             spike.geometry.dispose();
