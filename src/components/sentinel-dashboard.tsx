@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Flight, Earthquake, EonetEvent } from '@/types';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,7 @@ export default function SentinelDashboard() {
   const [flights, setFlights] = useState<Flight[]>([]);
   const [earthquakes, setEarthquakes] = useState<Earthquake[]>([]);
   const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
+  const [ships, setShips] = useState<Ship[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [isFetchingFlights, setIsFetchingFlights] = useState(false);
@@ -28,7 +29,7 @@ export default function SentinelDashboard() {
 
   const fetchFlights = useCallback(async () => {
     setIsFetchingFlights(true);
-    const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
+    const apiKey = "450dfe1f1f8d989c20d5fe44ce5c504f";
     if (!apiKey) {
       console.error("Aviationstack API key is missing.");
       toast({
@@ -53,7 +54,7 @@ export default function SentinelDashboard() {
       }
       
       const allFlights = data.data
-        .filter((flight: any) => flight.live) // Only show flights with live data
+        .filter((flight: any) => flight.live && flight.live.latitude && flight.live.longitude) // Only show flights with live data
         .map((flight: any): Flight => ({
           id: flight.flight.iata || `${flight.departure.iata}-${flight.arrival.iata}-${flight.airline.iata}`,
           latitude: flight.live.latitude,
@@ -77,7 +78,7 @@ export default function SentinelDashboard() {
       toast({
         variant: "destructive",
         title: "Failed to Fetch Flights",
-        description: errorMessage.includes('access restricted') 
+        description: errorMessage.includes('https access restricted') 
           ? "HTTPS is not available on your AviationStack plan. This is a known limitation of the free tier."
           : errorMessage,
       });
@@ -88,46 +89,33 @@ export default function SentinelDashboard() {
 
 
   useEffect(() => {
-    // Listener for Fires
-    const incidentsCollection = collection(firestore, 'incidents');
-    const qFires = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(500));
-    const unsubscribeFires = onSnapshot(qFires, (snapshot) => {
-      const newIncidents = snapshot.docs.map((doc: DocumentData) => ({
-        id: doc.id, ...doc.data(),
-      })) as Incident[];
-      setIncidents(newIncidents);
-      setLoading(false); // Set loading false on first data arrival
-    }, (error) => {
-      console.error("Error fetching incidents:", error);
-      setLoading(false);
-    });
+    setLoading(true);
+    const subscribers: (() => void)[] = [];
 
-    // Listener for Earthquakes
-    const earthquakesCollection = collection(firestore, 'earthquakes');
-    const qQuakes = query(earthquakesCollection, orderBy('timestamp', 'desc'), limit(200));
-    const unsubscribeQuakes = onSnapshot(qQuakes, (snapshot) => {
-      const newEarthquakes = snapshot.docs.map((doc: DocumentData) => ({
-        id: doc.id, ...doc.data(),
-      })) as Earthquake[];
-      setEarthquakes(newEarthquakes);
-    }, (error) => {
-      console.error("Error fetching earthquakes:", error);
-    });
+    const setupListener = (collectionName: string, setter: React.Dispatch<any>, orderField = 'timestamp') => {
+        const coll = collection(firestore, collectionName);
+        const q = query(coll, orderBy(orderField, 'desc'), limit(500));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            const data = snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() }));
+            setter(data);
+            setLoading(false); // Stop loading after first data comes in
+        }, (error) => {
+            console.error(`Error fetching ${collectionName}:`, error);
+            toast({
+                variant: 'destructive',
+                title: `Failed to load ${collectionName}`,
+                description: error.message
+            })
+            setLoading(false);
+        });
+        subscribers.push(unsubscribe);
+    };
 
-    // Listener for EONET Events
-    const eonetCollection = collection(firestore, 'eonet_events');
-    const qEonet = query(eonetCollection, orderBy('timestamp', 'desc'), limit(200));
-    const unsubscribeEonet = onSnapshot(qEonet, (snapshot) => {
-      const newEonetEvents = snapshot.docs.map((doc: DocumentData) => ({
-        id: doc.id, ...doc.data(),
-      })) as EonetEvent[];
-      setEonetEvents(newEonetEvents);
-    }, (error) => {
-      console.error("Error fetching EONET events:", error);
-    });
+    setupListener('incidents', setIncidents);
+    setupListener('earthquakes', setEarthquakes);
+    setupListener('eonet_events', setEonetEvents);
+    setupListener('ships', setShips);
 
-
-    // Fetch initial flight data on load
     fetchFlights();
     
     // Set OpenWeatherMap API key
@@ -139,11 +127,9 @@ export default function SentinelDashboard() {
     }
 
     return () => {
-      unsubscribeFires();
-      unsubscribeQuakes();
-      unsubscribeEonet();
+      subscribers.forEach(unsub => unsub());
     };
-  }, [fetchFlights]);
+  }, [fetchFlights, toast]);
 
   const latestTwentyIncidents = incidents.slice(0, 20);
 
@@ -160,6 +146,7 @@ export default function SentinelDashboard() {
             flights={flights}
             earthquakes={earthquakes}
             eonetEvents={eonetEvents}
+            ships={ships}
             openWeatherMapApiKey={openWeatherMapApiKey}
         />
       </main>

@@ -3,8 +3,8 @@
 import { MapContainer, TileLayer, LayersControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { formatDistanceToNow } from 'date-fns';
-import type { Incident, Flight, Earthquake, EonetEvent } from '@/types';
-import { Volcano, Wind, Droplets } from 'lucide-react';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship } from '@/types';
+import { Volcano, Wind, Droplets, Ship as ShipIcon } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
 
 
@@ -45,6 +45,7 @@ interface MapViewProps {
   flights: Flight[];
   earthquakes: Earthquake[];
   eonetEvents: EonetEvent[];
+  ships: Ship[];
   openWeatherMapApiKey?: string;
 }
 
@@ -53,6 +54,7 @@ export default function MapView({
     flights,
     earthquakes,
     eonetEvents,
+    ships,
     openWeatherMapApiKey
 }: MapViewProps) {
   // Center on a global view
@@ -213,6 +215,42 @@ export default function MapView({
                                 <p><strong>Title:</strong> ${event.title}</p>
                                 <p class="text-xs mt-2 text-muted-foreground">
                                     ${formatDistanceToNow(event.timestamp.toDate(), { addSuffix: true })}
+                                </p>
+                            </div>
+                        `);
+                      }}
+                    />
+                </LayersControl.Overlay>
+                <LayersControl.Overlay checked name="Shipping">
+                    <GeoJSON
+                      key={JSON.stringify(ships)}
+                      data={{
+                          type: 'FeatureCollection',
+                          features: ships.map(ship => ({
+                              type: 'Feature',
+                              properties: ship,
+                              geometry: {
+                                  type: 'Point',
+                                  coordinates: [ship.longitude, ship.latitude]
+                              }
+                          }))
+                      }}
+                      pointToLayer={(feature, latlng) => {
+                        return new L.CircleMarker(latlng, {
+                          radius: 3,
+                          color: 'cyan',
+                          fillColor: 'cyan',
+                          fillOpacity: 0.7,
+                          weight: 1,
+                        });
+                      }}
+                       onEachFeature={(feature, layer) => {
+                        const ship = feature.properties as Ship;
+                        layer.bindTooltip(`
+                            <div class="text-sm font-mono">
+                                <h3 class="font-bold text-base mb-1 text-cyan-400">Ship</h3>
+                                 <p class="text-xs mt-2 text-muted-foreground">
+                                    Lat: ${ship.latitude.toFixed(4)}, Lon: ${ship.longitude.toFixed(4)}
                                 </p>
                             </div>
                         `);

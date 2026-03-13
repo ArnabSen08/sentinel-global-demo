@@ -2,11 +2,11 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { TextureLoader, AdditiveBlending, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide } from 'three';
+import { TextureLoader, AdditiveBlending, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Earthquake, EonetEvent, Ship } from '@/types';
+import type { Incident, Earthquake, EonetEvent, Ship, Flight } from '@/types';
 
 // Helper function to convert lat/lon to a 3D vector
 const latLonToVector3 = (lat: number, lon: number, radius: number) => {
@@ -64,31 +64,27 @@ function Atmosphere() {
 }
 
 function Incidents({ data }: { data: (Incident | EonetEvent)[] }) {
+    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: 'red' }), []);
+
     const incidents = useMemo(() => data.map(d => {
         const pos = latLonToVector3(d.latitude, d.longitude, 5);
         const height = 0.1 + ((d as Incident).frp || 10) / 500;
-        return { pos, height };
+        const geometry = new CylinderGeometry(0.02, 0.02, height, 8);
+        geometry.translate(0, height / 2, 0);
+        return { pos, geometry };
     }), [data]);
 
     return (
         <group>
-            {incidents.map((incident, i) => {
-                const geometry = new CylinderGeometry(0.02, 0.02, incident.height, 8);
-                geometry.applyMatrix4(new Vector3(0, incident.height / 2, 0).toMatrix4());
-
-                return (
-                    <mesh key={i} position={incident.pos} lookAt={new Vector3(0,0,0)}>
-                        <primitive object={geometry} />
-                        <meshBasicMaterial color="orange" />
-                    </mesh>
-                );
-            })}
+            {incidents.map((incident, i) => (
+                <mesh key={i} position={incident.pos} geometry={incident.geometry} material={incidentMaterial} lookAt={new Vector3(0,0,0)} />
+            ))}
         </group>
     );
 }
 
+
 function Earthquakes({ data }: { data: Earthquake[] }) {
-    const ringRef = useRef<THREE.Group>(null);
     const [activeQuakes, setActiveQuakes] = useState<any[]>([]);
 
     useEffect(() => {
@@ -114,7 +110,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
     });
 
     return (
-        <group ref={ringRef}>
+        <group>
             {activeQuakes.map(quake => (
                 <mesh key={quake.id} position={quake.pos} lookAt={new Vector3(0,0,0)}>
                     <ringGeometry args={[
@@ -135,21 +131,42 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
 }
 
 function Ships({ data }: { data: Ship[] }) {
-     const ships = useMemo(() => data.map(d => ({
+    const shipMaterial = useMemo(() => new MeshBasicMaterial({ color: "cyan" }), []);
+    const shipGeometry = useMemo(() => new SphereGeometry(0.02, 8, 8), []);
+
+    const ships = useMemo(() => data.map(d => ({
         pos: latLonToVector3(d.latitude, d.longitude, 5.01),
     })), [data]);
 
     return (
         <group>
             {ships.map((ship, i) => (
-                <mesh key={i} position={ship.pos}>
-                    <sphereGeometry args={[0.02, 8, 8]} />
-                    <meshBasicMaterial color="cyan" />
-                </mesh>
+                <mesh key={i} position={ship.pos} geometry={shipGeometry} material={shipMaterial} />
             ))}
         </group>
     );
 }
+
+function Flights({ data }: { data: Flight[] }) {
+    const flightMaterial = useMemo(() => new MeshBasicMaterial({ color: "white" }), []);
+    const flightGeometry = useMemo(() => new SphereGeometry(0.015, 8, 8), []);
+    
+    const flights = useMemo(() => data
+        .filter(f => f.latitude && f.longitude)
+        .map(d => ({
+            pos: latLonToVector3(d.latitude, d.longitude, 5.1),
+        })
+    ), [data]);
+
+    return (
+        <group>
+            {flights.map((flight, i) => (
+                <mesh key={i} position={flight.pos} geometry={flightGeometry} material={flightMaterial}/>
+            ))}
+        </group>
+    );
+}
+
 
 export default function GlobeView() {
     const controlsRef = useRef<any>();
@@ -159,6 +176,8 @@ export default function GlobeView() {
     const [earthquakes, setEarthquakes] = useState<Earthquake[]>([]);
     const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
     const [ships, setShips] = useState<Ship[]>([]);
+    const [flights, setFlights] = useState<Flight[]>([]);
+    const [aviationStackFlights, setAviationStackFlights] = useState<Flight[]>([]);
 
     useEffect(() => {
         const listeners = [
@@ -171,16 +190,50 @@ export default function GlobeView() {
             onSnapshot(query(collection(firestore, 'ships'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
                 setShips(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Ship[])),
         ];
+
+        // We use a separate state for flights from aviationstack to avoid storing them in firestore
+        // and just fetch them on client load.
+        async function fetchFlights() {
+            const apiKey = "450dfe1f1f8d989c20d5fe44ce5c504f";
+            if (!apiKey) return;
+            try {
+                const url = `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_status=active`;
+                const response = await fetch(url);
+                const data = await response.json();
+                if (response.ok && data.data) {
+                     const allFlights = data.data
+                        .filter((flight: any) => flight.live && flight.live.latitude && flight.live.longitude)
+                        .map((flight: any): Flight => ({
+                          id: flight.flight.iata || `${flight.departure.iata}-${flight.arrival.iata}-${flight.airline.iata}`,
+                          latitude: flight.live.latitude,
+                          longitude: flight.live.longitude,
+                          direction: flight.live.direction,
+                          flight_iata: flight.flight.iata,
+                          airline_name: flight.airline.name,
+                          dep_iata: flight.departure.iata,
+                          arr_iata: flight.arrival.iata,
+                        }));
+                    setAviationStackFlights(allFlights);
+                }
+            } catch (error) {
+                console.error("Error fetching flight data:", error);
+            }
+        }
+
+        fetchFlights();
+        
         return () => listeners.forEach(unsubscribe => unsubscribe());
     }, []);
 
-    useFrame(({ camera }) => {
+    useFrame(() => {
         if (!isUserInteracting && controlsRef.current) {
-            controlsRef.current.azimuthalAngle += 0.0005;
+            controlsRef.current.object.rotation.y += 0.0005;
+            controlsRef.current.update();
         }
     });
     
     const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
+    const allFlights = useMemo(() => [...flights, ...aviationStackFlights], [flights, aviationStackFlights]);
 
 
     return (
@@ -197,6 +250,7 @@ export default function GlobeView() {
                     <Incidents data={allIncidents} />
                     <Earthquakes data={earthquakes} />
                     <Ships data={ships} />
+                    <Flights data={allFlights} />
                 </React.Suspense>
                 
                 <OrbitControls
@@ -208,7 +262,8 @@ export default function GlobeView() {
                     onStart={() => setIsUserInteracting(true)}
                     onEnd={() => {
                        // Using a timeout to avoid stopping rotation on click
-                       setTimeout(() => setIsUserInteracting(false), 2000);
+                       const timeout = setTimeout(() => setIsUserInteracting(false), 2000);
+                       return () => clearTimeout(timeout);
                     }}
                 />
                  <EffectComposer>
@@ -220,26 +275,11 @@ export default function GlobeView() {
                 <p>Fires/Events: {allIncidents.length}</p>
                 <p>Earthquakes: {earthquakes.length}</p>
                 <p>Active Ships: {ships.length}</p>
+                <p>Active Flights: {allFlights.length}</p>
             </div>
              <div className="absolute bottom-4 left-4 p-2 rounded-lg bg-black/50 text-white font-mono text-xs">
                 <p>3D Globe View | SENTINEL</p>
             </div>
         </div>
     );
-}
-
-// Helper to create a matrix for the cylinder to stand up on the sphere
-declare global {
-    interface Vector3 {
-        toMatrix4(): THREE.Matrix4;
-    }
-}
-
-Vector3.prototype.toMatrix4 = function() {
-    const matrix = new THREE.Matrix4();
-    const up = new Vector3(0, 1, 0);
-    const quaternion = new THREE.Quaternion().setFromUnitVectors(up, this.clone().normalize());
-    matrix.makeRotationFromQuaternion(quaternion);
-    matrix.setPosition(this);
-    return matrix;
 }
