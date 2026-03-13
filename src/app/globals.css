@@ -22,7 +22,7 @@ body {
     --muted-foreground: 240 5% 65%;
     --accent: 193 100% 72%;
     --accent-foreground: 240 8% 11%;
-    --destructive: 0 63% 31%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
     --border: 240 8% 20%;
     --input: 240 8% 20%;
@@ -57,7 +57,7 @@ body {
     --muted-foreground: 240 5% 65%;
     --accent: 193 100% 72%;
     --accent-foreground: 240 8% 11%;
-    --destructive: 0 63% 31%;
+    --destructive: 0 72% 51%;
     --destructive-foreground: 210 40% 98%;
     --border: 240 8% 20%;
     --input: 240 8% 20%;
@@ -85,4 +85,30 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* Leaflet popup dark theme */
+.leaflet-popup-content-wrapper {
+  background-color: hsl(var(--card));
+  color: hsl(var(--card-foreground));
+  border-radius: var(--radius);
+  border: 1px solid hsl(var(--border));
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.leaflet-popup-content {
+  margin: 14px;
+  line-height: 1.5;
+}
+.leaflet-popup-tip {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-top-color: transparent;
+  border-left-color: transparent;
+}
+.leaflet-container a.leaflet-popup-close-button {
+  color: hsl(var(--muted-foreground));
+  transition: color 0.2s;
+}
+.leaflet-container a.leaflet-popup-close-button:hover {
+  color: hsl(var(--foreground));
 }

@@ -1,12 +1,18 @@
 "use client";
 
 import { useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
 import type { Incident } from '@/types';
-import { GlobeView } from '@/components/globe-view';
 import { IncidentList } from '@/components/incident-list';
 import { ControlPanel } from '@/components/control-panel';
+import { Skeleton } from '@/components/ui/skeleton';
+
+const MapView = dynamic(() => import('@/components/map-view'), {
+  ssr: false,
+  loading: () => <Skeleton className="absolute inset-0 z-0 bg-card" />,
+});
 
 export default function SentinelDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -35,7 +41,7 @@ export default function SentinelDashboard() {
 
   return (
     <>
-      <GlobeView incidents={incidents} />
+      <MapView incidents={incidents} />
       <IncidentList incidents={latestFiveIncidents} loading={loading} />
       <ControlPanel />
     </>

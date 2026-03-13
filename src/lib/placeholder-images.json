@@ -1,16 +1,3 @@
 {
-  "placeholderImages": [
-    {
-      "id": "globe-texture",
-      "description": "A dark, tactical satellite texture of the Earth at night.",
-      "imageUrl": "https://unpkg.com/three-globe/example/img/earth-dark.jpg",
-      "imageHint": "dark satellite earth"
-    },
-    {
-      "id": "globe-bump-map",
-      "description": "A topology map for the Earth to create a 3D effect.",
-      "imageUrl": "https://unpkg.com/three-globe/example/img/earth-topology.png",
-      "imageHint": "earth topology map"
-    }
-  ]
+  "placeholderImages": []
 }
