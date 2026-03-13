@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
 import type { Incident, Flight } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
-import { useToast } from "@/hooks/use-toast"
-
+import { useToast } from "@/hooks/use-toast";
+import { SituationalAwarenessSidebar } from './situational-awareness-sidebar';
 
 import type { FeatureCollection, Point, LineString } from 'geojson';
 import { point as turfPoint } from '@turf/helpers';
@@ -44,6 +44,10 @@ export default function SentinelDashboard() {
 
   const [affectedRailIds, setAffectedRailIds] = useState<Set<string>>(new Set());
   const [affectedPowerIds, setAffectedPowerIds] = useState<Set<string>>(new Set());
+
+  // New state for sidebar
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [selectedIncident, setSelectedIncident] = useState<Incident | null>(null);
 
   const fetchFlights = useCallback(async () => {
     setIsFetchingFlights(true);
@@ -180,12 +184,53 @@ export default function SentinelDashboard() {
 
   }, [incidents]);
 
+  const handleIncidentSelect = (incident: Incident) => {
+    setSelectedIncident(incident);
+    setIsSidebarOpen(true);
+  };
+  
+  const handleSidebarToggle = () => {
+    setIsSidebarOpen(!isSidebarOpen);
+  };
+
+  // Memoize nearby infrastructure for the selected incident
+  const { nearbyPowerPlants, nearbyRailwaysCount } = useMemo(() => {
+    if (!selectedIncident) return { nearbyPowerPlants: [], nearbyRailwaysCount: 0 };
+    
+    const incidentPoint = turfPoint([selectedIncident.longitude, selectedIncident.latitude]);
+    const powerPlantsNearby: string[] = [];
+    let railwaysNearbyCount = 0;
+
+    for (const power of powerPlants.features) {
+      if (!power.id || !power.geometry || !power.properties?.name) continue;
+      const distance = turfDistance(incidentPoint, power.geometry, { units: 'kilometers' });
+      if (distance < 5) {
+        powerPlantsNearby.push(power.properties.name);
+      }
+    }
+    
+    for (const rail of railways.features) {
+      if (!rail.id || !rail.geometry) continue;
+      const distance = pointToLineDistance(incidentPoint, rail.geometry, { units: 'kilometers' });
+      if (distance < 5) {
+        railwaysNearbyCount++;
+      }
+    }
+    
+    return { nearbyPowerPlants: powerPlantsNearby, nearbyRailwaysCount: railwaysNearbyCount };
+  }, [selectedIncident]);
+
 
   const latestTwentyIncidents = incidents.slice(0, 20);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-black">
-      <HudHeader incidents={latestTwentyIncidents} onRefreshFlights={fetchFlights} isFetchingFlights={isFetchingFlights} />
+      <HudHeader 
+        incidents={latestTwentyIncidents} 
+        onRefreshFlights={fetchFlights} 
+        isFetchingFlights={isFetchingFlights}
+        onToggleSidebar={handleSidebarToggle}
+      />
       <main className="flex-1 relative">
         <MapView 
             incidents={incidents} 
@@ -195,6 +240,15 @@ export default function SentinelDashboard() {
             affectedPowerIds={affectedPowerIds}
             affectedRailIds={affectedRailIds}
             openWeatherMapApiKey={openWeatherMapApiKey}
+            onIncidentSelect={handleIncidentSelect}
+            selectedIncidentId={selectedIncident?.id || null}
+        />
+        <SituationalAwarenessSidebar 
+          isOpen={isSidebarOpen}
+          onOpenChange={setIsSidebarOpen}
+          incident={selectedIncident}
+          nearbyPowerPlants={nearbyPowerPlants}
+          nearbyRailwaysCount={nearbyRailwaysCount}
         />
       </main>
     </div>
