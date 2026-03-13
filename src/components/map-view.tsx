@@ -10,6 +10,7 @@ interface MapViewProps {
   incidents: Incident[];
   powerPlants: FeatureCollection<Point, {name: string, type: string}>;
   railways: FeatureCollection<LineString, {name: string}>;
+  ukraineBoundary: FeatureCollection;
   affectedPowerIds: Set<string>;
   affectedRailIds: Set<string>;
 }
@@ -29,7 +30,7 @@ const affectedPowerPlantIcon = new L.Icon({
 });
 
 
-export default function MapView({ incidents, powerPlants, railways, affectedPowerIds, affectedRailIds }: MapViewProps) {
+export default function MapView({ incidents, powerPlants, railways, ukraineBoundary, affectedPowerIds, affectedRailIds }: MapViewProps) {
   const position: [number, number] = [48.3794, 31.1656]; // Ukraine center
   const zoom = 6;
 
@@ -37,7 +38,7 @@ export default function MapView({ incidents, powerPlants, railways, affectedPowe
     if (feature && affectedRailIds.has(feature.id as string)) {
         return { color: 'hsl(var(--primary))', weight: 3, className: 'animate-flash' };
     }
-    return { color: '#555555', weight: 1.5, dashArray: '5, 5' };
+    return { color: 'hsl(var(--muted-foreground))', weight: 1.5, opacity: 0.7, dashArray: '5, 5' };
   };
 
   const onEachPowerPlant = (feature: GeoJSON.Feature<Point, {name: string, type: string}>, layer: L.Layer) => {
@@ -59,6 +60,17 @@ export default function MapView({ incidents, powerPlants, railways, affectedPowe
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+             <GeoJSON 
+                key="ukraine-boundary" 
+                data={ukraineBoundary} 
+                style={{
+                    color: 'hsl(var(--primary))',
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.1,
+                    fillColor: 'hsl(var(--primary))',
+                }}
             />
             <LayersControl position="topright">
                 <LayersControl.Overlay checked name="Fires (NASA)">
@@ -100,6 +112,12 @@ export default function MapView({ incidents, powerPlants, railways, affectedPowe
                         `);
                       }}
                     />
+                </LayersControl.Overlay>
+                 <LayersControl.Overlay name="Flights">
+                    {/* Placeholder for flights layer */}
+                </LayersControl.Overlay>
+                <LayersControl.Overlay name="Weather">
+                    {/* Placeholder for weather layer */}
                 </LayersControl.Overlay>
                 <LayersControl.Overlay checked name="Railways">
                     <GeoJSON key="railways" data={railways} style={railStyle} />

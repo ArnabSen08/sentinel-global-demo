@@ -17,6 +17,7 @@ import { sub, isAfter } from 'date-fns';
 
 import powerPlantsData from '@/data/ukraine-power-plants.geojson';
 import railwaysData from '@/data/ukraine-railways.geojson';
+import ukraineBoundaryData from '@/data/ukraine-boundary.geojson';
 
 
 const MapView = dynamic(() => import('@/components/map-view'), {
@@ -26,6 +27,7 @@ const MapView = dynamic(() => import('@/components/map-view'), {
 
 const powerPlants = powerPlantsData as FeatureCollection<Point, {name: string, type: string}>;
 const railways = railwaysData as FeatureCollection<LineString, {name: string}>;
+const ukraineBoundary = ukraineBoundaryData as FeatureCollection;
 
 export default function SentinelDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -113,6 +115,7 @@ export default function SentinelDashboard() {
             incidents={incidents} 
             powerPlants={powerPlants}
             railways={railways}
+            ukraineBoundary={ukraineBoundary}
             affectedPowerIds={affectedPowerIds}
             affectedRailIds={affectedRailIds}
         />
