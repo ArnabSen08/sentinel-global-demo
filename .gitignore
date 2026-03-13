@@ -1,36 +1,38 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Dependencies
+# dependencies
 /node_modules
 /.pnp
 .pnp.js
 
-# Testing
+# testing
 /coverage
 
-# Next.js
+# next.js
 /.next/
 /out/
 
-# Production
+# production
 /build
 
-# Misc
+# misc
 .DS_Store
 *.pem
 
-# VSCode settings
-.vscode/
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Mac files
-.AppleDouble
-.LSOverride
+# local env files
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 
-# Windows thumbnail cache files
-Thumbs.db
-ehthumbs.db
-ehthumbs_vista.db
+# vercel
+.vercel
 
-# dotenv environment variables file
-.env*.local
-.env
+# typescript
+*.tsbuildinfo
+next-env.d.ts

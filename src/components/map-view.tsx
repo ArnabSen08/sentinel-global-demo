@@ -3,14 +3,14 @@
 import { MapContainer, TileLayer, LayersControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { formatDistanceToNow } from 'date-fns';
-import type { Incident } from '@/types';
+import type { Incident, Flight } from '@/types';
 import type { FeatureCollection, Point, LineString } from 'geojson';
 
 interface MapViewProps {
   incidents: Incident[];
+  flights: Flight[];
   powerPlants: FeatureCollection<Point, {name: string, type: string}>;
   railways: FeatureCollection<LineString, {name: string}>;
-  ukraineBoundary: FeatureCollection;
   affectedPowerIds: Set<string>;
   affectedRailIds: Set<string>;
 }
@@ -29,8 +29,10 @@ const affectedPowerPlantIcon = new L.Icon({
     iconAnchor: [12, 12],
 });
 
+const planeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="yellow" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`;
 
-export default function MapView({ incidents, powerPlants, railways, ukraineBoundary, affectedPowerIds, affectedRailIds }: MapViewProps) {
+
+export default function MapView({ incidents, flights, powerPlants, railways, affectedPowerIds, affectedRailIds }: MapViewProps) {
   const position: [number, number] = [48.3794, 31.1656]; // Ukraine center
   const zoom = 6;
 
@@ -38,7 +40,7 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
     if (feature && affectedRailIds.has(feature.id as string)) {
         return { color: 'hsl(var(--primary))', weight: 3, className: 'animate-flash' };
     }
-    return { color: 'hsl(var(--secondary))', weight: 1.5, opacity: 0.8 };
+    return { color: '#555', weight: 1.5, opacity: 0.8, dashArray: '5, 5' };
   };
 
   const onEachPowerPlant = (feature: GeoJSON.Feature<Point, {name: string, type: string}>, layer: L.Layer) => {
@@ -60,17 +62,6 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
                 url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-            />
-             <GeoJSON 
-                key="ukraine-boundary" 
-                data={ukraineBoundary} 
-                style={{
-                    color: 'hsl(var(--primary))',
-                    weight: 3,
-                    opacity: 1,
-                    fillOpacity: 0.15,
-                    fillColor: 'hsl(var(--primary))',
-                }}
             />
             <LayersControl position="topright">
                 <LayersControl.Overlay checked name="Fires (NASA)">
@@ -113,6 +104,45 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
                       }}
                     />
                 </LayersControl.Overlay>
+                 <LayersControl.Overlay checked name="Flights">
+                    <GeoJSON
+                        key={JSON.stringify(flights)} 
+                        data={{
+                            type: 'FeatureCollection',
+                            features: flights.map(flight => ({
+                                type: 'Feature',
+                                properties: flight,
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: [flight.longitude, flight.latitude]
+                                }
+                            }))
+                        }}
+                        pointToLayer={(feature, latlng) => {
+                            const flight = feature.properties as Flight;
+                            const icon = L.divIcon({
+                                html: `<div style="transform: rotate(${flight.direction - 90}deg);">${planeSVG}</div>`,
+                                className: 'flight-icon',
+                                iconSize: [24, 24],
+                                iconAnchor: [12, 12],
+                            });
+                            return L.marker(latlng, { icon });
+                        }}
+                        onEachFeature={(feature, layer) => {
+                            const flight = feature.properties as Flight;
+                            layer.bindPopup(`
+                                <div class="text-sm font-mono">
+                                    <h3 class="font-bold text-base mb-1 text-yellow-400">Flight: ${flight.flight_iata}</h3>
+                                    <p><strong>Airline:</strong> ${flight.airline_name}</p>
+                                    <p><strong>Route:</strong> ${flight.dep_iata} &rarr; ${flight.arr_iata}</p>
+                                    <p class="text-xs mt-2 text-muted-foreground">
+                                        Lat: ${flight.latitude.toFixed(4)}, Lon: ${flight.longitude.toFixed(4)}
+                                    </p>
+                                </div>
+                            `);
+                        }}
+                    />
+                </LayersControl.Overlay>
                 <LayersControl.Overlay checked name="Railways">
                     <GeoJSON key="railways" data={railways} style={railStyle} />
                 </LayersControl.Overlay>
@@ -128,12 +158,6 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
                         }}
                         onEachFeature={onEachPowerPlant}
                     />
-                </LayersControl.Overlay>
-                 <LayersControl.Overlay name="Flights (Placeholder)">
-                    {/* Placeholder for flights layer */}
-                </LayersControl.Overlay>
-                <LayersControl.Overlay name="Weather (Placeholder)">
-                    {/* Placeholder for weather layer */}
                 </LayersControl.Overlay>
             </LayersControl>
         </MapContainer>
