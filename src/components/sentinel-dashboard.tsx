@@ -5,13 +5,13 @@ import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
 import type { Incident } from '@/types';
-import { IncidentList } from '@/components/incident-list';
-import { ControlPanel } from '@/components/control-panel';
 import { Skeleton } from '@/components/ui/skeleton';
+import { HudHeader } from './hud-header';
+import { DataGrid } from './data-grid';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
-  loading: () => <Skeleton className="absolute inset-0 z-0 bg-card" />,
+  loading: () => <Skeleton className="absolute inset-0 z-0 bg-background" />,
 });
 
 export default function SentinelDashboard() {
@@ -20,7 +20,7 @@ export default function SentinelDashboard() {
 
   useEffect(() => {
     const incidentsCollection = collection(firestore, 'incidents');
-    const q = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(500)); // Limit to last 500 for performance
+    const q = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(100));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const newIncidents = snapshot.docs.map((doc: DocumentData) => ({
@@ -37,13 +37,13 @@ export default function SentinelDashboard() {
     return () => unsubscribe();
   }, []);
 
-  const latestFiveIncidents = incidents.slice(0, 5);
+  const latestTwentyIncidents = incidents.slice(0, 20);
 
   return (
-    <>
+    <div className="h-screen w-screen relative bg-black">
       <MapView incidents={incidents} />
-      <IncidentList incidents={latestFiveIncidents} loading={loading} />
-      <ControlPanel />
-    </>
+      <HudHeader incidents={latestTwentyIncidents} />
+      <DataGrid incidents={incidents} />
+    </div>
   );
 }
