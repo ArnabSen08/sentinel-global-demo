@@ -2,7 +2,7 @@
 
 import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import type { Incident, Earthquake, EonetEvent } from "@/types";
+import type { Incident, Earthquake, EonetEvent, Ship } from "@/types";
 
 /**
  * Generates 10 random mock incidents across the globe and saves them to Firestore.
@@ -255,5 +255,60 @@ export async function fetchAndStoreEonetData() {
         console.error("Error fetching or storing EONET data:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message: `An error occurred while fetching EONET data: ${errorMessage}` };
+    }
+}
+
+/**
+ * Generates mock shipping data and stores it in Firestore.
+ */
+export async function fetchAndStoreShippingData() {
+    if (!isFirebaseAdminInitialized) {
+        const message = "Firebase Admin is not initialized. Cannot generate mock shipping data.";
+        console.error(message);
+        return { success: false, message };
+    }
+    try {
+        const batch = adminDb.batch();
+        const shippingCollection = adminDb.collection("ships");
+        const shippingLanes = [
+            { name: "Suez Canal", path: [{ lat: 30.0, lon: 32.5 }, { lat: 12.6, lon: 43.3 }] },
+            { name: "Strait of Malacca", path: [{ lat: 1.2, lon: 103.8 }, { lat: 5.8, lon: 95.3 }] },
+            { name: "Panama Canal", path: [{ lat: 9.0, lon: -79.7 }, { lat: 8.5, lon: -80.0 }] },
+            { name: "Trans-Pacific", path: [{ lat: 34.0, lon: -118.2 }, { lat: 35.6, lon: 139.6 }] },
+            { name: "Trans-Atlantic", path: [{ lat: 51.5, lon: -0.1 }, { lat: 40.7, lon: -74.0 }] },
+        ];
+        let newShipsCount = 0;
+        
+        // Clear old mock data
+        const snapshot = await shippingCollection.limit(500).get();
+        if(!snapshot.empty) {
+          snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        }
+
+        for (const lane of shippingLanes) {
+            for (let i = 0; i < 15; i++) { // 15 ships per lane
+                const t = Math.random();
+                const lat = lane.path[0].lat + t * (lane.path[1].lat - lane.path[0].lat);
+                const lon = lane.path[0].lon + t * (lane.path[1].lon - lane.path[0].lon);
+                
+                const heading = Math.atan2(lane.path[1].lat - lane.path[0].lat, lane.path[1].lon - lane.path[0].lon) * 180 / Math.PI;
+
+                const newShip: Omit<Ship, 'id'> = {
+                    latitude: lat + (Math.random() - 0.5), // Add some jitter
+                    longitude: lon + (Math.random() - 0.5),
+                    timestamp: Timestamp.now(),
+                    heading: heading,
+                };
+                const docRef = shippingCollection.doc();
+                batch.set(docRef, newShip);
+                newShipsCount++;
+            }
+        }
+        await batch.commit();
+        return { success: true, message: `Successfully generated ${newShipsCount} mock ships.` };
+    } catch (error) {
+        console.error("Error generating mock shipping data:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `Failed to generate mock shipping data: ${errorMessage}` };
     }
 }

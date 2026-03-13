@@ -4,7 +4,8 @@ import type { Incident } from '@/types';
 import { Clock } from './clock';
 import { Ticker } from './ticker';
 import { Button } from './ui/button';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Globe } from 'lucide-react';
+import Link from 'next/link';
 
 interface HudHeaderProps {
   incidents: Incident[];
@@ -20,6 +21,12 @@ export function HudHeader({ incidents, onRefreshFlights, isFetchingFlights }: Hu
           SENTINEL | LIVE
         </h1>
         <div className="flex items-center gap-4">
+           <Link href="/globe" passHref>
+             <Button variant="outline" size="sm">
+                <Globe className="mr-2 h-4 w-4" />
+                3D View
+             </Button>
+           </Link>
           <Button variant="outline" size="sm" onClick={onRefreshFlights} disabled={isFetchingFlights}>
             <RefreshCw className={`mr-2 h-4 w-4 ${isFetchingFlights ? 'animate-spin' : ''}`} />
             Refresh Flights

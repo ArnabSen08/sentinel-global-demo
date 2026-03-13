@@ -38,3 +38,11 @@ export interface EonetEvent {
   longitude: number;
   timestamp: Timestamp;
 }
+
+export interface Ship {
+  id: string;
+  latitude: number;
+  longitude: number;
+  timestamp: Timestamp;
+  heading: number;
+}
