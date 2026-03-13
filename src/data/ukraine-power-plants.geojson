@@ -1,0 +1,13 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "pp-1",
+      "properties": { "name": "Zaporizhzhia NPP", "type": "Nuclear" },
+      "geometry": { "type": "Point", "coordinates": [35.0, 47.5] }
+    },
+    { "type": "Feature", "id": "pp-2", "properties": { "name": "Khmelnytskyi NPP", "type": "Nuclear" }, "geometry": { "type": "Point", "coordinates": [26.6, 50.3] } },
+    { "type": "Feature", "id": "pp-3", "properties": { "name": "Kyiv Hydroelectric Station", "type": "Hydro" }, "geometry": { "type": "Point", "coordinates": [30.58, 50.58] } }
+  ]
+}

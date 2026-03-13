@@ -1,0 +1,23 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "rail-1",
+        "properties": { "name": "Kyiv - Lviv Line" },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [ [30.5234, 50.4501], [28.623, 49.33], [26.5, 49.55], [24.0297, 49.8397] ]
+        }
+      },
+      {
+        "type": "Feature",
+        "id": "rail-2",
+        "properties": { "name": "Kyiv - Odesa Line" },
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [ [30.5234, 50.4501], [30.8, 48.4], [30.7326, 46.4825] ]
+        }
+      }
+    ]
+}

@@ -1,65 +1,123 @@
 "use client";
 
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, LayersControl, GeoJSON, Marker } from 'react-leaflet';
+import L from 'leaflet';
 import { formatDistanceToNow } from 'date-fns';
 import type { Incident } from '@/types';
-import { Button } from './ui/button';
-import { Maximize, Layers } from 'lucide-react';
+import type { FeatureCollection, Point, LineString } from 'geojson';
 
 interface MapViewProps {
   incidents: Incident[];
+  powerPlants: FeatureCollection<Point, {name: string, type: string}>;
+  railways: FeatureCollection<LineString, {name: string}>;
+  affectedPowerIds: Set<string>;
+  affectedRailIds: Set<string>;
 }
 
-export default function MapView({ incidents }: MapViewProps) {
+// Base icon for power plants
+const powerPlantIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="cyan" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>'),
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
+});
+
+// Icon for affected power plants
+const affectedPowerPlantIcon = new L.Icon({
+    iconUrl: 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="orange" stroke="orange" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="animate-flash"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>'),
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+});
+
+
+export default function MapView({ incidents, powerPlants, railways, affectedPowerIds, affectedRailIds }: MapViewProps) {
   const position: [number, number] = [48.3794, 31.1656]; // Ukraine center
   const zoom = 6;
 
+  const railStyle = (feature?: GeoJSON.Feature) => {
+    if (feature && affectedRailIds.has(feature.id as string)) {
+        return { color: 'hsl(var(--primary))', weight: 3, className: 'animate-flash' };
+    }
+    return { color: '#555555', weight: 1.5, dashArray: '5, 5' };
+  };
+
+  const onEachPowerPlant = (feature: GeoJSON.Feature<Point, {name: string, type: string}>, layer: L.Layer) => {
+    if (feature.properties) {
+        const { name, type } = feature.properties;
+        layer.bindPopup(`<h3 class="font-bold text-base mb-1 text-cyan-400">${type} Plant</h3><p>${name}</p>`);
+    }
+  }
+
   return (
     <>
-        <div className="absolute top-20 right-2 z-10 flex flex-col gap-2">
-            <Button variant="outline" size="icon" className="bg-card/50 border-primary/30 hover:bg-card">
-                <Maximize className="h-4 w-4 text-primary/80" />
-            </Button>
-            <Button variant="outline" size="icon" className="bg-card/50 border-primary/30 hover:bg-card">
-                <Layers className="h-4 w-4 text-primary/80" />
-            </Button>
-        </div>
         <MapContainer
-        center={position}
-        zoom={zoom}
-        scrollWheelZoom={true}
-        style={{ height: '100%', width: '100%', backgroundColor: 'hsl(var(--background))' }}
-        className="absolute inset-0 z-0"
+            center={position}
+            zoom={zoom}
+            scrollWheelZoom={true}
+            style={{ height: '100%', width: '100%', backgroundColor: 'hsl(var(--background))' }}
+            className="absolute inset-0 z-0"
         >
-        <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-            url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-        />
-        {incidents.map(incident => (
-            <CircleMarker
-            key={incident.id}
-            center={[incident.latitude, incident.longitude]}
-            pathOptions={{
-                color: 'hsl(var(--destructive))',
-                fillColor: 'hsl(var(--destructive))',
-                fillOpacity: 0.6,
-                weight: 1.5,
-            }}
-            radius={5 + Math.min((incident.frp || 0) / 40, 12)} // Scale radius based on fire radiative power
-            >
-            <Popup>
-                <div className="text-sm font-mono">
-                <h3 className="font-bold text-base mb-1 text-primary">Thermal Anomaly</h3>
-                <p><strong>Time:</strong> {formatDistanceToNow(incident.timestamp.toDate(), { addSuffix: true })}</p>
-                <p><strong>Intensity (FRP):</strong> {incident.frp ?? 'N/A'}</p>
-                <p><strong>Brightness:</strong> {incident.brightness ? `${incident.brightness}K` : 'N/A'}</p>
-                <p className="text-xs mt-2 text-muted-foreground">
-                    Lat: {incident.latitude.toFixed(4)}, Lon: {incident.longitude.toFixed(4)}
-                </p>
-                </div>
-            </Popup>
-            </CircleMarker>
-        ))}
+            <TileLayer
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+            />
+            <LayersControl position="topright">
+                <LayersControl.Overlay checked name="Fires (NASA)">
+                    <GeoJSON 
+                      key="incidents"
+                      data={{
+                          type: 'FeatureCollection',
+                          features: incidents.map(incident => ({
+                              type: 'Feature',
+                              properties: incident,
+                              geometry: {
+                                  type: 'Point',
+                                  coordinates: [incident.longitude, incident.latitude]
+                              }
+                          }))
+                      }}
+                      pointToLayer={(feature, latlng) => {
+                        const incident = feature.properties as Incident;
+                        return new L.CircleMarker(latlng, {
+                          radius: 5 + Math.min((incident.frp || 0) / 40, 12),
+                          color: 'hsl(var(--destructive))',
+                          fillColor: 'hsl(var(--destructive))',
+                          fillOpacity: 0.6,
+                          weight: 1.5,
+                        });
+                      }}
+                      onEachFeature={(feature, layer) => {
+                        const incident = feature.properties as Incident;
+                        layer.bindPopup(`
+                            <div class="text-sm font-mono">
+                                <h3 class="font-bold text-base mb-1 text-primary">Thermal Anomaly</h3>
+                                <p><strong>Time:</strong> ${formatDistanceToNow(incident.timestamp.toDate(), { addSuffix: true })}</p>
+                                <p><strong>Intensity (FRP):</strong> ${incident.frp ?? 'N/A'}</p>
+                                <p><strong>Brightness:</strong> ${incident.brightness ? `${incident.brightness}K` : 'N/A'}</p>
+                                <p class="text-xs mt-2 text-muted-foreground">
+                                    Lat: ${incident.latitude.toFixed(4)}, Lon: ${incident.longitude.toFixed(4)}
+                                </p>
+                            </div>
+                        `);
+                      }}
+                    />
+                </LayersControl.Overlay>
+                <LayersControl.Overlay checked name="Railways">
+                    <GeoJSON key="railways" data={railways} style={railStyle} />
+                </LayersControl.Overlay>
+                <LayersControl.Overlay checked name="Power Grid">
+                    <GeoJSON 
+                        key="power"
+                        data={powerPlants} 
+                        pointToLayer={(feature, latlng) => {
+                            const isAffected = affectedPowerIds.has(feature.id as string);
+                            return new Marker(latlng, { 
+                                icon: isAffected ? affectedPowerPlantIcon : powerPlantIcon 
+                            });
+                        }}
+                        onEachFeature={onEachPowerPlant}
+                    />
+                </LayersControl.Overlay>
+            </LayersControl>
         </MapContainer>
     </>
   );

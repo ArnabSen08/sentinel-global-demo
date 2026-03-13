@@ -55,6 +55,21 @@
   }
   body {
     @apply bg-background text-foreground;
+    position: relative;
+  }
+  /* CRT Scanline Effect */
+  body::after {
+    content: " ";
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+    z-index: 10000;
+    pointer-events: none;
+    background-size: 100% 2px, 3px 100%;
   }
 }
 
@@ -83,6 +98,24 @@
 .leaflet-container a.leaflet-popup-close-button:hover {
   color: hsl(var(--foreground));
 }
+.leaflet-control-layers {
+  background-color: hsl(var(--card) / 0.7);
+  backdrop-filter: blur(4px);
+  border: 1px solid hsl(var(--primary) / 0.3);
+  border-radius: var(--radius);
+  padding: 6px;
+  color: hsl(var(--card-foreground));
+}
+.leaflet-control-layers-selector {
+  vertical-align: middle;
+}
+.leaflet-control-layers label {
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 
 @keyframes ticker {
   0% {
@@ -93,9 +126,35 @@
   }
 }
 
+@keyframes pulse-glow {
+  0%, 100% {
+    text-shadow: 0 0 8px hsla(var(--primary), 0.5), 0 0 16px hsla(var(--destructive), 0.3);
+  }
+  50% {
+    text-shadow: 0 0 16px hsla(var(--primary), 0.7), 0 0 32px hsla(var(--destructive), 0.5);
+  }
+}
+
+@keyframes flash {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
 .animate-ticker-item {
   display: inline-block;
   white-space: nowrap;
   will-change: transform;
   animation: ticker 60s linear infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 4s ease-in-out infinite;
+}
+
+.animate-flash {
+  animation: flash 1s ease-in-out infinite;
 }
