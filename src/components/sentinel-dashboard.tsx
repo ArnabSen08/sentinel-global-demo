@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Flight } from '@/types';
+import type { Incident, Flight, Earthquake, EonetEvent } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +17,9 @@ const MapView = dynamic(() => import('@/components/map-view'), {
 export default function SentinelDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [flights, setFlights] = useState<Flight[]>([]);
+  const [earthquakes, setEarthquakes] = useState<Earthquake[]>([]);
+  const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [isFetchingFlights, setIsFetchingFlights] = useState(false);
   const { toast } = useToast();
@@ -85,21 +88,44 @@ export default function SentinelDashboard() {
 
 
   useEffect(() => {
+    // Listener for Fires
     const incidentsCollection = collection(firestore, 'incidents');
-    // Fetch more incidents for a global view
-    const q = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(500));
-
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const qFires = query(incidentsCollection, orderBy('timestamp', 'desc'), limit(500));
+    const unsubscribeFires = onSnapshot(qFires, (snapshot) => {
       const newIncidents = snapshot.docs.map((doc: DocumentData) => ({
-        id: doc.id,
-        ...doc.data(),
+        id: doc.id, ...doc.data(),
       })) as Incident[];
       setIncidents(newIncidents);
-      setLoading(false);
+      setLoading(false); // Set loading false on first data arrival
     }, (error) => {
       console.error("Error fetching incidents:", error);
       setLoading(false);
     });
+
+    // Listener for Earthquakes
+    const earthquakesCollection = collection(firestore, 'earthquakes');
+    const qQuakes = query(earthquakesCollection, orderBy('timestamp', 'desc'), limit(200));
+    const unsubscribeQuakes = onSnapshot(qQuakes, (snapshot) => {
+      const newEarthquakes = snapshot.docs.map((doc: DocumentData) => ({
+        id: doc.id, ...doc.data(),
+      })) as Earthquake[];
+      setEarthquakes(newEarthquakes);
+    }, (error) => {
+      console.error("Error fetching earthquakes:", error);
+    });
+
+    // Listener for EONET Events
+    const eonetCollection = collection(firestore, 'eonet_events');
+    const qEonet = query(eonetCollection, orderBy('timestamp', 'desc'), limit(200));
+    const unsubscribeEonet = onSnapshot(qEonet, (snapshot) => {
+      const newEonetEvents = snapshot.docs.map((doc: DocumentData) => ({
+        id: doc.id, ...doc.data(),
+      })) as EonetEvent[];
+      setEonetEvents(newEonetEvents);
+    }, (error) => {
+      console.error("Error fetching EONET events:", error);
+    });
+
 
     // Fetch initial flight data on load
     fetchFlights();
@@ -112,7 +138,11 @@ export default function SentinelDashboard() {
         console.warn("OpenWeatherMap API key is not configured. Weather layers will be unavailable.");
     }
 
-    return () => unsubscribe();
+    return () => {
+      unsubscribeFires();
+      unsubscribeQuakes();
+      unsubscribeEonet();
+    };
   }, [fetchFlights]);
 
   const latestTwentyIncidents = incidents.slice(0, 20);
@@ -128,6 +158,8 @@ export default function SentinelDashboard() {
         <MapView 
             incidents={incidents} 
             flights={flights}
+            earthquakes={earthquakes}
+            eonetEvents={eonetEvents}
             openWeatherMapApiKey={openWeatherMapApiKey}
         />
       </main>

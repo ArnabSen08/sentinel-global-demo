@@ -1,23 +1,33 @@
-import { fetchAndStoreFirmsData } from '@/app/actions';
+import { fetchAndStoreFirmsData, fetchAndStoreUsgsData, fetchAndStoreEonetData } from '@/app/actions';
 import { NextResponse } from 'next/server';
 
-// This route can be called by a cron job scheduler to periodically fetch FIRMS data.
-// e.g., `curl -X GET https://your-app-url/api/cron`
+// This route can be called by a cron job scheduler to periodically fetch data.
 export async function GET(req: Request) {
   // In a production environment, you would want to secure this endpoint.
-  // For example, by checking for a secret token in the headers:
-  // if (req.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
-  //   return new Response('Unauthorized', { status: 401 });
-  // }
-
   try {
-    const result = await fetchAndStoreFirmsData();
-    if (result.success) {
-      return NextResponse.json({ success: true, message: result.message });
-    } else {
-      // Use 500 status code for server-side errors from the action
-      return NextResponse.json({ success: false, message: result.message }, { status: 500 });
+    // Run all data fetch actions in parallel
+    const [firmsResult, usgsResult, eonetResult] = await Promise.all([
+      fetchAndStoreFirmsData(),
+      fetchAndStoreUsgsData(),
+      fetchAndStoreEonetData()
+    ]);
+
+    const results = {
+      firms: firmsResult,
+      usgs: usgsResult,
+      eonet: eonetResult
+    };
+    
+    // Check if any of them failed
+    const hasError = Object.values(results).some(r => !r.success);
+
+    if (hasError) {
+        console.error("Cron job /api/cron finished with errors:", results);
+        return NextResponse.json({ success: false, results }, { status: 500 });
     }
+
+    return NextResponse.json({ success: true, results });
+
   } catch (error) {
     console.error("Cron job /api/cron failed:", error);
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";

@@ -20,3 +20,21 @@ export interface Flight {
     dep_iata: string;
     arr_iata: string;
 }
+
+export interface Earthquake {
+  id: string;
+  latitude: number;
+  longitude: number;
+  timestamp: Timestamp;
+  magnitude: number;
+  place: string;
+}
+
+export interface EonetEvent {
+  id:string;
+  title: string;
+  category: string;
+  latitude: number;
+  longitude: number;
+  timestamp: Timestamp;
+}

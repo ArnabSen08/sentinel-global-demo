@@ -2,7 +2,7 @@
 
 import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import type { Incident } from "@/types";
+import type { Incident, Earthquake, EonetEvent } from "@/types";
 
 /**
  * Generates 10 random mock incidents across the globe and saves them to Firestore.
@@ -139,4 +139,121 @@ export async function fetchAndStoreFirmsData() {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     return { success: false, message: `An error occurred while fetching FIRMS data: ${errorMessage}` };
   }
+}
+
+/**
+ * Fetches real-time earthquake data from the USGS feed for the past hour
+ * and stores it in the 'earthquakes' Firestore collection.
+ */
+export async function fetchAndStoreUsgsData() {
+  if (!isFirebaseAdminInitialized) {
+    const message = "Firebase Admin is not initialized. Cannot store USGS data.";
+    console.error(message);
+    return { success: false, message };
+  }
+
+  const url = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/all_hour.geojson';
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`USGS API request failed with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const batch = adminDb.batch();
+    const earthquakesCollection = adminDb.collection("earthquakes");
+    let newEarthquakesCount = 0;
+
+    for (const feature of data.features) {
+      const { properties, geometry } = feature;
+      if (!properties || !geometry || properties.type !== 'earthquake') continue;
+
+      const [longitude, latitude] = geometry.coordinates;
+      
+      const newEarthquake: Omit<Earthquake, 'id'> = {
+        latitude,
+        longitude,
+        timestamp: Timestamp.fromMillis(properties.time),
+        magnitude: properties.mag,
+        place: properties.place,
+      };
+
+      // Use USGS event id as the document ID to prevent duplicates
+      const docId = feature.id;
+      const docRef = earthquakesCollection.doc(docId);
+      batch.set(docRef, newEarthquake, { merge: true });
+      newEarthquakesCount++;
+    }
+
+    if (newEarthquakesCount > 0) {
+      await batch.commit();
+    }
+    
+    return { success: true, message: `Successfully processed and stored ${newEarthquakesCount} USGS earthquake events.` };
+
+  } catch (error) {
+    console.error("Error fetching or storing USGS data:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message: `An error occurred while fetching USGS data: ${errorMessage}` };
+  }
+}
+
+/**
+ * Fetches open natural event data from NASA's EONET API
+ * and stores it in the 'eonet_events' Firestore collection.
+ */
+export async function fetchAndStoreEonetData() {
+    if (!isFirebaseAdminInitialized) {
+        const message = "Firebase Admin is not initialized. Cannot store EONET data.";
+        console.error(message);
+        return { success: false, message };
+    }
+
+    // Fetches all open events
+    const url = 'https://eonet.gsfc.nasa.gov/api/v3/events';
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`EONET API request failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const batch = adminDb.batch();
+        const eonetCollection = adminDb.collection("eonet_events");
+        let newEventsCount = 0;
+
+        for (const event of data.events) {
+            // EONET events can have multiple geometries, we'll take the first one
+            const geometry = event.geometry[0];
+            if (!geometry || geometry.type !== 'Point') continue;
+
+            const [longitude, latitude] = geometry.coordinates;
+
+            const newEvent: Omit<EonetEvent, 'id'> = {
+                title: event.title,
+                category: event.categories[0]?.title || 'Unknown',
+                latitude,
+                longitude,
+                timestamp: Timestamp.fromDate(new Date(geometry.date)),
+            };
+
+            const docId = event.id;
+            const docRef = eonetCollection.doc(docId);
+            batch.set(docRef, newEvent, { merge: true });
+            newEventsCount++;
+        }
+
+        if (newEventsCount > 0) {
+            await batch.commit();
+        }
+
+        return { success: true, message: `Successfully processed and stored ${newEventsCount} EONET events.` };
+
+    } catch (error) {
+        console.error("Error fetching or storing EONET data:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `An error occurred while fetching EONET data: ${errorMessage}` };
+    }
 }
