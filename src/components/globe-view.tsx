@@ -22,9 +22,9 @@ const latLonToVector3 = (lat: number, lon: number, radius: number) => {
 
 function Earth() {
     const [colorMap, normalMap, specularMap] = useLoader(TextureLoader, [
-        '/textures/earth_daymap.jpg',
-        '/textures/earth_normal_map.png',
-        '/textures/earth_specular_map.jpg'
+        'https://unpkg.com/three-globe/example/img/earth-dark.jpg',
+        'https://unpkg.com/three-globe/example/img/earth-topology.png',
+        'https://unpkg.com/three-globe/example/img/earth-water.png'
     ]);
     return (
         <mesh>
@@ -40,7 +40,7 @@ function Earth() {
 }
 
 function Clouds() {
-    const texture = useLoader(TextureLoader, '/textures/earth_clouds.png');
+    const texture = useLoader(TextureLoader, 'https://unpkg.com/three-globe/example/img/clouds.png');
     return (
         <mesh scale={[1.01, 1.01, 1.01]}>
             <sphereGeometry args={[5, 64, 64]} />
