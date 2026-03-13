@@ -9,7 +9,7 @@ interface DataGridProps {
 
 export function DataGrid({ incidents }: DataGridProps) {
   return (
-    <div className="absolute bottom-0 left-0 right-0 z-10 h-1/3 border-t border-primary/20 bg-black/50 p-2 backdrop-blur-sm">
+    <div className="relative z-10 h-1/3 flex-shrink-0 border-t border-primary/20 bg-black/50 p-2 backdrop-blur-sm">
       <div className="grid h-full grid-cols-4 gap-2">
         <DataColumn title="QUAKES">
            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">No data available</div>

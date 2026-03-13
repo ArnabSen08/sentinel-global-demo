@@ -40,9 +40,11 @@ export default function SentinelDashboard() {
   const latestTwentyIncidents = incidents.slice(0, 20);
 
   return (
-    <div className="h-screen w-screen relative bg-black">
-      <MapView incidents={incidents} />
+    <div className="h-screen w-screen flex flex-col bg-black">
       <HudHeader incidents={latestTwentyIncidents} />
+      <main className="flex-1 relative">
+        <MapView incidents={incidents} />
+      </main>
       <DataGrid incidents={incidents} />
     </div>
   );
