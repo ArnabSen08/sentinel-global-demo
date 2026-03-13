@@ -38,7 +38,7 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
     if (feature && affectedRailIds.has(feature.id as string)) {
         return { color: 'hsl(var(--primary))', weight: 3, className: 'animate-flash' };
     }
-    return { color: 'hsl(var(--muted-foreground))', weight: 1.5, opacity: 0.7, dashArray: '5, 5' };
+    return { color: 'hsl(var(--secondary))', weight: 1.5, opacity: 0.8 };
   };
 
   const onEachPowerPlant = (feature: GeoJSON.Feature<Point, {name: string, type: string}>, layer: L.Layer) => {
@@ -66,9 +66,9 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
                 data={ukraineBoundary} 
                 style={{
                     color: 'hsl(var(--primary))',
-                    weight: 2,
-                    opacity: 0.8,
-                    fillOpacity: 0.1,
+                    weight: 3,
+                    opacity: 1,
+                    fillOpacity: 0.15,
                     fillColor: 'hsl(var(--primary))',
                 }}
             />
@@ -113,12 +113,6 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
                       }}
                     />
                 </LayersControl.Overlay>
-                 <LayersControl.Overlay name="Flights">
-                    {/* Placeholder for flights layer */}
-                </LayersControl.Overlay>
-                <LayersControl.Overlay name="Weather">
-                    {/* Placeholder for weather layer */}
-                </LayersControl.Overlay>
                 <LayersControl.Overlay checked name="Railways">
                     <GeoJSON key="railways" data={railways} style={railStyle} />
                 </LayersControl.Overlay>
@@ -134,6 +128,12 @@ export default function MapView({ incidents, powerPlants, railways, ukraineBound
                         }}
                         onEachFeature={onEachPowerPlant}
                     />
+                </LayersControl.Overlay>
+                 <LayersControl.Overlay name="Flights (Placeholder)">
+                    {/* Placeholder for flights layer */}
+                </LayersControl.Overlay>
+                <LayersControl.Overlay name="Weather (Placeholder)">
+                    {/* Placeholder for weather layer */}
                 </LayersControl.Overlay>
             </LayersControl>
         </MapContainer>

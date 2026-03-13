@@ -7,7 +7,6 @@ import { firestore } from '@/lib/firebase-client';
 import type { Incident } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
-import { DataGrid } from './data-grid';
 
 import type { FeatureCollection, Point, LineString } from 'geojson';
 import { point as turfPoint } from '@turf/helpers';
@@ -33,7 +32,6 @@ export default function SentinelDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [nearbyIncidentCount, setNearbyIncidentCount] = useState(0);
   const [affectedRailIds, setAffectedRailIds] = useState<Set<string>>(new Set());
   const [affectedPowerIds, setAffectedPowerIds] = useState<Set<string>>(new Set());
 
@@ -59,19 +57,18 @@ export default function SentinelDashboard() {
 
   useEffect(() => {
     if (!incidents.length) return;
-
-    const now = new Date();
-    const twentyFourHoursAgo = sub(now, { hours: 24 });
     
-    let nearbyCount = 0;
     const newAffectedRailIds = new Set<string>();
     const newAffectedPowerIds = new Set<string>();
 
-    for (const incident of incidents) {
+    const recentIncidents = incidents.filter(incident => 
+      isAfter(incident.timestamp.toDate(), sub(new Date(), { hours: 24 }))
+    );
+
+    for (const incident of recentIncidents) {
       if (!incident.longitude || !incident.latitude) continue;
 
       const incidentPoint = turfPoint([incident.longitude, incident.latitude]);
-      let isNearInfra = false;
 
       // Proximity check for railways
       for (const rail of railways.features) {
@@ -79,7 +76,6 @@ export default function SentinelDashboard() {
         const distance = pointToLineDistance(incidentPoint, rail.geometry, { units: 'kilometers' });
         if (distance < 5) {
           newAffectedRailIds.add(rail.id as string);
-          isNearInfra = true;
         }
       }
 
@@ -89,16 +85,10 @@ export default function SentinelDashboard() {
         const distance = turfDistance(incidentPoint, power.geometry, { units: 'kilometers' });
         if (distance < 5) {
           newAffectedPowerIds.add(power.id as string);
-          isNearInfra = true;
         }
-      }
-
-      if (isNearInfra && isAfter(incident.timestamp.toDate(), twentyFourHoursAgo)) {
-        nearbyCount++;
       }
     }
 
-    setNearbyIncidentCount(nearbyCount);
     setAffectedRailIds(newAffectedRailIds);
     setAffectedPowerIds(newAffectedPowerIds);
 
@@ -120,7 +110,6 @@ export default function SentinelDashboard() {
             affectedRailIds={affectedRailIds}
         />
       </main>
-      <DataGrid incidents={incidents} nearbyIncidentCount={nearbyIncidentCount} />
     </div>
   );
 }
