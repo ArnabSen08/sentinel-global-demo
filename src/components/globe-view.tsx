@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { TextureLoader, AdditiveBlending, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry } from 'three';
+import { TextureLoader, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
@@ -34,21 +34,6 @@ function Earth() {
                 normalMap={normalMap}
                 specularMap={specularMap}
                 shininess={100}
-            />
-        </mesh>
-    );
-}
-
-function Clouds() {
-    const texture = useLoader(TextureLoader, '//unpkg.com/three-globe/example/img/clouds.png');
-    return (
-        <mesh scale={[1.01, 1.01, 1.01]}>
-            <sphereGeometry args={[5, 64, 64]} />
-            <meshPhongMaterial
-                map={texture}
-                transparent={true}
-                opacity={0.4}
-                blending={AdditiveBlending}
             />
         </mesh>
     );
@@ -191,7 +176,6 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
 
             <React.Suspense fallback={null}>
                 <Earth />
-                <Clouds />
                 <Atmosphere />
                 <Incidents data={allIncidents} />
                 <Earthquakes data={earthquakes} />
