@@ -1,6 +1,6 @@
 "use client";
 
-import { MapContainer, TileLayer, CircleMarker, Popup, LayersControl, GeoJSON, Marker } from 'react-leaflet';
+import { MapContainer, TileLayer, LayersControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { formatDistanceToNow } from 'date-fns';
 import type { Incident } from '@/types';
@@ -110,7 +110,7 @@ export default function MapView({ incidents, powerPlants, railways, affectedPowe
                         data={powerPlants} 
                         pointToLayer={(feature, latlng) => {
                             const isAffected = affectedPowerIds.has(feature.id as string);
-                            return new Marker(latlng, { 
+                            return L.marker(latlng, { 
                                 icon: isAffected ? affectedPowerPlantIcon : powerPlantIcon 
                             });
                         }}
