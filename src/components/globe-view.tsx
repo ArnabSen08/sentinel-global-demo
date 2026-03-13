@@ -16,6 +16,7 @@ export function GlobeView({ incidents }: GlobeViewProps) {
   const mountRef = useRef<HTMLDivElement>(null);
   const incidentsRef = useRef<Map<string, THREE.Object3D>>(new Map());
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+  const sceneRef = useRef<THREE.Scene | null>(null);
 
   useEffect(() => {
     if (!mountRef.current) return;
@@ -24,6 +25,7 @@ export function GlobeView({ incidents }: GlobeViewProps) {
     
     // Scene setup
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
     const camera = new THREE.PerspectiveCamera(75, currentMount.clientWidth / currentMount.clientHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(currentMount.clientWidth, currentMount.clientHeight);
@@ -113,6 +115,9 @@ export function GlobeView({ incidents }: GlobeViewProps) {
   }, []);
 
   useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
     const globe = scene.children.find(child => child instanceof THREE.Mesh && child.geometry instanceof THREE.SphereGeometry);
     const incidentsGroup = globe?.children.find(child => child instanceof THREE.Group);
     
