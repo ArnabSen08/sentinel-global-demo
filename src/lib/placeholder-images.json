@@ -1,3 +1,10 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "globe-texture",
+      "description": "A dark, tactical satellite texture of the Earth at night.",
+      "imageUrl": "https://picsum.photos/seed/earth-texture/2048/1024",
+      "imageHint": "dark satellite earth"
+    }
+  ]
 }
