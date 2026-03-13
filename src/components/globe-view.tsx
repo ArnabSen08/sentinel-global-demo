@@ -167,11 +167,60 @@ function Flights({ data }: { data: Flight[] }) {
     );
 }
 
-
-export default function GlobeView() {
+function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
+    allIncidents: (Incident | EonetEvent)[];
+    earthquakes: Earthquake[];
+    ships: Ship[];
+    allFlights: Flight[];
+}) {
     const controlsRef = useRef<any>();
     const [isUserInteracting, setIsUserInteracting] = useState(false);
-    
+
+    useFrame(() => {
+        if (!isUserInteracting && controlsRef.current) {
+            controlsRef.current.object.rotation.y += 0.0005;
+            controlsRef.current.update();
+        }
+    });
+
+    return (
+        <>
+            <ambientLight intensity={0.2} />
+            <directionalLight position={[10, 10, 5]} intensity={1} />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
+
+            <React.Suspense fallback={null}>
+                <Earth />
+                <Clouds />
+                <Atmosphere />
+                <Incidents data={allIncidents} />
+                <Earthquakes data={earthquakes} />
+                <Ships data={ships} />
+                <Flights data={allFlights} />
+            </React.Suspense>
+            
+            <OrbitControls
+                ref={controlsRef}
+                enablePan={false}
+                enableZoom={true}
+                minDistance={6}
+                maxDistance={25}
+                onStart={() => setIsUserInteracting(true)}
+                onEnd={() => {
+                   // Using a timeout to avoid stopping rotation on click
+                   const timeout = setTimeout(() => setIsUserInteracting(false), 2000);
+                   return () => clearTimeout(timeout);
+                }}
+            />
+             <EffectComposer>
+                <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} intensity={0.7} />
+            </EffectComposer>
+        </>
+    );
+}
+
+
+export default function GlobeView() {
     const [incidents, setIncidents] = useState<Incident[]>([]);
     const [earthquakes, setEarthquakes] = useState<Earthquake[]>([]);
     const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
@@ -224,13 +273,6 @@ export default function GlobeView() {
         
         return () => listeners.forEach(unsubscribe => unsubscribe());
     }, []);
-
-    useFrame(() => {
-        if (!isUserInteracting && controlsRef.current) {
-            controlsRef.current.object.rotation.y += 0.0005;
-            controlsRef.current.update();
-        }
-    });
     
     const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
     const allFlights = useMemo(() => [...flights, ...aviationStackFlights], [flights, aviationStackFlights]);
@@ -239,36 +281,12 @@ export default function GlobeView() {
     return (
         <div className="w-full h-screen relative bg-black">
             <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
-                <ambientLight intensity={0.2} />
-                <directionalLight position={[10, 10, 5]} intensity={1} />
-                <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
-
-                <React.Suspense fallback={null}>
-                    <Earth />
-                    <Clouds />
-                    <Atmosphere />
-                    <Incidents data={allIncidents} />
-                    <Earthquakes data={earthquakes} />
-                    <Ships data={ships} />
-                    <Flights data={allFlights} />
-                </React.Suspense>
-                
-                <OrbitControls
-                    ref={controlsRef}
-                    enablePan={false}
-                    enableZoom={true}
-                    minDistance={6}
-                    maxDistance={25}
-                    onStart={() => setIsUserInteracting(true)}
-                    onEnd={() => {
-                       // Using a timeout to avoid stopping rotation on click
-                       const timeout = setTimeout(() => setIsUserInteracting(false), 2000);
-                       return () => clearTimeout(timeout);
-                    }}
+                <GlobeScene 
+                    allIncidents={allIncidents}
+                    earthquakes={earthquakes}
+                    ships={ships}
+                    allFlights={allFlights}
                 />
-                 <EffectComposer>
-                    <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} intensity={0.7} />
-                </EffectComposer>
             </Canvas>
             <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
                 <h3 className="font-bold text-primary mb-2">Global Stats</h3>
