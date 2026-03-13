@@ -67,9 +67,9 @@ export async function fetchAndStoreFirmsData() {
     return { success: false, message };
   }
 
-  const apiKey = process.env.NASA_FIRMS_API_KEY;
+  const apiKey = process.env.FIRMS_MAP_KEY;
   if (!apiKey) {
-    const message = "NASA FIRMS API key is not configured.";
+    const message = "NASA FIRMS API key (FIRMS_MAP_KEY) is not configured in environment variables.";
     console.error(message);
     return { success: false, message };
   }
