@@ -1,6 +1,6 @@
 "use server";
 
-import { adminDb } from "@/lib/firebase-admin";
+import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import type { Incident } from "@/types";
 
@@ -15,6 +15,11 @@ const UKRAINE_BOUNDS = {
  * This is useful for initial testing and development.
  */
 export async function generateMockData() {
+  if (!isFirebaseAdminInitialized) {
+    const message = "Firebase Admin is not initialized. Cannot generate mock data.";
+    console.error(message);
+    return { success: false, message };
+  }
   try {
     const batch = adminDb.batch();
     const incidentsCollection = adminDb.collection("incidents");
@@ -43,7 +48,8 @@ export async function generateMockData() {
     return { success: true, message: "Successfully generated 10 mock incidents." };
   } catch (error) {
     console.error("Error generating mock data:", error);
-    return { success: false, message: "Failed to generate mock data." };
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message: `Failed to generate mock data: ${errorMessage}` };
   }
 }
 
@@ -55,6 +61,12 @@ export async function generateMockData() {
  * a scheduler (e.g., Google Cloud Scheduler) to call an API route that triggers this action.
  */
 export async function fetchAndStoreFirmsData() {
+  if (!isFirebaseAdminInitialized) {
+    const message = "Firebase Admin is not initialized. Cannot store FIRMS data.";
+    console.error(message);
+    return { success: false, message };
+  }
+
   const apiKey = process.env.NASA_FIRMS_API_KEY;
   if (!apiKey) {
     const message = "NASA FIRMS API key is not configured.";
@@ -100,7 +112,7 @@ export async function fetchAndStoreFirmsData() {
         const acq_date = data.acq_date;
         const acq_time = data.acq_time.padStart(4, '0'); // Ensure HHMM format
 
-        if (isNaN(latitude) || isNaN(longitude)) continue;
+        if (isNaN(latitude) || isNaN(longitude) || !acq_date || !acq_time) continue;
 
         const year = parseInt(acq_date.substring(0, 4));
         const month = parseInt(acq_date.substring(5, 7)) - 1; // JS months are 0-indexed
@@ -126,12 +138,15 @@ export async function fetchAndStoreFirmsData() {
         newIncidentsCount++;
     }
 
-    await batch.commit();
+    if (newIncidentsCount > 0) {
+      await batch.commit();
+    }
 
     return { success: true, message: `Successfully processed and stored ${newIncidentsCount} FIRMS incidents.` };
 
   } catch (error) {
     console.error("Error fetching or storing FIRMS data:", error);
-    return { success: false, message: "An error occurred while fetching FIRMS data." };
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message: `An error occurred while fetching FIRMS data: ${errorMessage}` };
   }
 }
