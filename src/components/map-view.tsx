@@ -13,6 +13,7 @@ interface MapViewProps {
   railways: FeatureCollection<LineString, {name: string}>;
   affectedPowerIds: Set<string>;
   affectedRailIds: Set<string>;
+  openWeatherMapApiKey?: string;
 }
 
 // Base icon for power plants
@@ -32,7 +33,7 @@ const affectedPowerPlantIcon = new L.Icon({
 const planeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="yellow" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`;
 
 
-export default function MapView({ incidents, flights, powerPlants, railways, affectedPowerIds, affectedRailIds }: MapViewProps) {
+export default function MapView({ incidents, flights, powerPlants, railways, affectedPowerIds, affectedRailIds, openWeatherMapApiKey }: MapViewProps) {
   const position: [number, number] = [48.3794, 31.1656]; // Ukraine center
   const zoom = 6;
 
@@ -159,6 +160,24 @@ export default function MapView({ incidents, flights, powerPlants, railways, aff
                         onEachFeature={onEachPowerPlant}
                     />
                 </LayersControl.Overlay>
+                {openWeatherMapApiKey && (
+                  <>
+                    <LayersControl.Overlay name="Weather (Clouds)">
+                      <TileLayer
+                        url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${openWeatherMapApiKey}`}
+                        attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                        opacity={0.6}
+                      />
+                    </LayersControl.Overlay>
+                    <LayersControl.Overlay name="Weather (Wind)">
+                      <TileLayer
+                        url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${openWeatherMapApiKey}`}
+                        attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
+                        opacity={0.6}
+                      />
+                    </LayersControl.Overlay>
+                  </>
+                )}
             </LayersControl>
         </MapContainer>
     </>

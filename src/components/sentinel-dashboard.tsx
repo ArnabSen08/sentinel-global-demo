@@ -39,6 +39,8 @@ export default function SentinelDashboard() {
   const [loading, setLoading] = useState(true);
   const [isFetchingFlights, setIsFetchingFlights] = useState(false);
   const { toast } = useToast();
+  
+  const [openWeatherMapApiKey, setOpenWeatherMapApiKey] = useState<string | undefined>();
 
   const [affectedRailIds, setAffectedRailIds] = useState<Set<string>>(new Set());
   const [affectedPowerIds, setAffectedPowerIds] = useState<Set<string>>(new Set());
@@ -58,14 +60,16 @@ export default function SentinelDashboard() {
     }
 
     try {
-      // API docs: https://aviationstack.com/documentation
-      const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_status=active`;
+      // Attempting to use HTTPS. Note: AviationStack's free plan may not support HTTPS.
+      // If this fails, it's likely a limitation of the free plan blocking HTTPS access.
+      const url = `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_status=active`;
       const response = await fetch(url);
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData?.error?.message || `Aviationstack API request failed with status: ${response.status}`);
-      }
+      
       const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data?.error?.message || `Aviationstack API request failed with status: ${response.status}`);
+      }
       
       const ukraineFlights = data.data
         .filter((flight: any) => flight.live &&
@@ -97,7 +101,9 @@ export default function SentinelDashboard() {
       toast({
         variant: "destructive",
         title: "Failed to Fetch Flights",
-        description: errorMessage,
+        description: errorMessage.includes('access restricted') 
+          ? "HTTPS is not available on your AviationStack plan. This is a known limitation of the free tier."
+          : errorMessage,
       });
     } finally {
       setIsFetchingFlights(false);
@@ -123,6 +129,14 @@ export default function SentinelDashboard() {
 
     // Fetch initial flight data on load
     fetchFlights();
+    
+    // Set OpenWeatherMap API key
+    const owmKey = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
+    if (owmKey && owmKey !== 'REPLACE_WITH_YOUR_OPENWEATHERMAP_API_KEY') {
+        setOpenWeatherMapApiKey(owmKey);
+    } else {
+        console.warn("OpenWeatherMap API key is not configured. Weather layers will be unavailable.");
+    }
 
     return () => unsubscribe();
   }, [fetchFlights]);
@@ -180,6 +194,7 @@ export default function SentinelDashboard() {
             railways={railways}
             affectedPowerIds={affectedPowerIds}
             affectedRailIds={affectedRailIds}
+            openWeatherMapApiKey={openWeatherMapApiKey}
         />
       </main>
     </div>
