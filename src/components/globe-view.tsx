@@ -436,12 +436,12 @@ export default function GlobeView() {
                 />
             </Canvas>
             <div className="absolute top-4 left-4 z-10">
-                <Link href="/" passHref>
-                    <Button variant="outline">
+                <Button variant="outline" asChild>
+                    <Link href="/">
                         <Map className="mr-2 h-4 w-4" />
                         2D Map View
-                    </Button>
-                </Link>
+                    </Link>
+                </Button>
             </div>
             <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
                 <h3 className="font-bold text-primary mb-2">Global Stats</h3>

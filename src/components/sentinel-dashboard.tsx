@@ -9,7 +9,7 @@ import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, New
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
-import { SidebarProvider, Sidebar, SidebarTrigger } from '@/components/ui/sidebar';
+import { SidebarProvider, Sidebar, useSidebar } from '@/components/ui/sidebar';
 import { DataSidebar } from './data-sidebar';
 import { PanelRight } from 'lucide-react';
 import { Button } from './ui/button';
@@ -18,6 +18,17 @@ const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
   loading: () => <Skeleton className="absolute inset-0 z-0 bg-background" />,
 });
+
+const DataFeedsTrigger = () => {
+    const { toggleSidebar } = useSidebar();
+    return (
+        <Button variant="outline" size="sm" onClick={toggleSidebar}>
+            <PanelRight className="mr-2 h-4 w-4" />
+            Data Feeds
+        </Button>
+    );
+};
+
 
 export default function SentinelDashboard() {
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -90,12 +101,7 @@ export default function SentinelDashboard() {
               weather={weather}
           />
            <div className="absolute top-4 right-16 z-10">
-                <SidebarTrigger asChild>
-                    <Button variant="outline" size="sm">
-                        <PanelRight className="mr-2 h-4 w-4" />
-                        Data Feeds
-                    </Button>
-                </SidebarTrigger>
+                <DataFeedsTrigger />
             </div>
         </main>
       </div>
