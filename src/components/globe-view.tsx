@@ -1,9 +1,8 @@
-
 "use client";
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, Color, MeshPhongMaterial } from 'three';
+import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, LineBasicMaterial, BufferGeometry } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
@@ -29,6 +28,47 @@ function Earth() {
         </mesh>
     );
 }
+
+function Countries({ data }: { data: any }) {
+    const lines = useMemo(() => {
+        if (!data || !data.features) return [];
+        const allLines: { id: string; geometry: BufferGeometry }[] = [];
+        
+        data.features.forEach((feat: any) => {
+            const { type } = feat.geometry;
+            const coords = feat.geometry.coordinates;
+            const id = feat.properties.ISO_A3 || feat.id;
+
+            if (type === 'Polygon') {
+                coords.forEach((poly: any) => {
+                    const points = poly.map((p: number[]) => latLonToVector3(p[1], p[0], 5.001));
+                    const geometry = new BufferGeometry().setFromPoints(points);
+                    allLines.push({ id: `${id}-${allLines.length}`, geometry });
+                });
+            } else if (type === 'MultiPolygon') {
+                coords.forEach((multiPoly: any) => {
+                    multiPoly.forEach((poly: any) => {
+                        const points = poly.map((p: number[]) => latLonToVector3(p[1], p[0], 5.001));
+                        const geometry = new BufferGeometry().setFromPoints(points);
+                        allLines.push({ id: `${id}-${allLines.length}`, geometry });
+                    });
+                });
+            }
+        });
+        return allLines;
+    }, [data]);
+
+    const material = useMemo(() => new LineBasicMaterial({ color: '#334155', toneMapped: false }), []); // Muted slate color
+
+    return (
+        <group>
+            {lines.map(line => (
+                <line key={line.id} geometry={line.geometry} material={material} />
+            ))}
+        </group>
+    );
+}
+
 
 function Atmosphere() {
     return (
@@ -102,11 +142,9 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
                 const isMajor = quake.isMajor;
                 const scale = 1 - quake.life; // 0 to 1
                 
-                // For major quakes, make the ring expand further and be more prominent
                 const innerRadius = isMajor ? 0.05 + (quake.magnitude * 0.1) * scale : 0.05 + (quake.magnitude * 0.05) * scale;
                 const outerRadius = isMajor ? 0.1 + (quake.magnitude * 0.1) * scale : 0.1 + (quake.magnitude * 0.05) * scale;
                 
-                // Create a pulsing opacity effect for major quakes
                 const opacity = isMajor ? Math.sin(quake.life * Math.PI) * 0.9 : quake.life * 0.7;
 
                 return (
@@ -117,7 +155,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
                             32
                         ]} />
                         <meshBasicMaterial
-                            color={isMajor ? "#ff0000" : "#ff8000"} // Brighter red for major, orange for minor
+                            color={isMajor ? "#ff0000" : "#ff8000"}
                             transparent
                             opacity={opacity}
                             side={DoubleSide}
@@ -168,11 +206,12 @@ function Flights({ data }: { data: Flight[] }) {
     );
 }
 
-function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
+function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries }: {
     allIncidents: (Incident | EonetEvent)[];
     earthquakes: Earthquake[];
     ships: Ship[];
     allFlights: Flight[];
+    countries: any;
 }) {
     const controlsRef = useRef<any>();
     const [isUserInteracting, setIsUserInteracting] = useState(false);
@@ -194,6 +233,7 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
             <React.Suspense fallback={null}>
                 <Earth />
                 <Atmosphere />
+                <Countries data={countries} />
                 <Incidents data={allIncidents} />
                 <Earthquakes data={earthquakes} />
                 <Ships data={ships} />
@@ -227,6 +267,7 @@ export default function GlobeView() {
     const [ships, setShips] = useState<Ship[]>([]);
     const [flights, setFlights] = useState<Flight[]>([]);
     const [aviationStackFlights, setAviationStackFlights] = useState<Flight[]>([]);
+    const [countries, setCountries] = useState({ features: [] });
 
     useEffect(() => {
         const listeners = [
@@ -267,6 +308,11 @@ export default function GlobeView() {
             }
         }
 
+        fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+            .then(res => res.json())
+            .then(setCountries)
+            .catch(err => console.error("Error fetching country data:", err));
+
         fetchFlights();
         
         return () => listeners.forEach(unsubscribe => unsubscribe());
@@ -284,6 +330,7 @@ export default function GlobeView() {
                     earthquakes={earthquakes}
                     ships={ships}
                     allFlights={allFlights}
+                    countries={countries}
                 />
             </Canvas>
             <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
@@ -299,7 +346,3 @@ export default function GlobeView() {
         </div>
     );
 }
-
-    
-
-    
