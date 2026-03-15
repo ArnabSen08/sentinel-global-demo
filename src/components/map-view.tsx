@@ -1,10 +1,11 @@
+
 "use client";
 
 import { MapContainer, TileLayer, LayersControl, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
 import { formatDistanceToNow } from 'date-fns';
-import type { Incident, Flight, Earthquake, EonetEvent, Ship } from '@/types';
-import { Volcano, Wind, Droplets, Ship as ShipIcon } from 'lucide-react';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate } from '@/types';
+import { Volcano, Wind, Droplets, Ship as ShipIcon, Thermometer } from 'lucide-react';
 import ReactDOMServer from 'react-dom/server';
 
 
@@ -39,6 +40,20 @@ const eonetIcon = (category: string) => {
     });
 };
 
+const weatherIcon = (temp: number) => {
+    return L.divIcon({
+        html: `
+            <div class="flex items-center gap-1 bg-black/50 p-1 rounded-md text-white text-xs font-mono border border-white/20">
+                ${ReactDOMServer.renderToString(<Thermometer size={12} className="text-blue-300" />)}
+                <span>${temp.toFixed(0)}&deg;C</span>
+            </div>
+        `,
+        className: 'weather-icon',
+        iconSize: [60, 24],
+        iconAnchor: [30, 12],
+    });
+};
+
 
 interface MapViewProps {
   incidents: Incident[];
@@ -46,7 +61,7 @@ interface MapViewProps {
   earthquakes: Earthquake[];
   eonetEvents: EonetEvent[];
   ships: Ship[];
-  openWeatherMapApiKey?: string;
+  weather: WeatherUpdate[];
 }
 
 export default function MapView({ 
@@ -55,7 +70,7 @@ export default function MapView({
     earthquakes,
     eonetEvents,
     ships,
-    openWeatherMapApiKey
+    weather
 }: MapViewProps) {
   // Center on a global view
   const position: [number, number] = [20, 0];
@@ -257,24 +272,39 @@ export default function MapView({
                       }}
                     />
                 </LayersControl.Overlay>
-                {openWeatherMapApiKey && (
-                  <>
-                    <LayersControl.Overlay name="Weather (Clouds)">
-                      <TileLayer
-                        url={`https://tile.openweathermap.org/map/clouds_new/{z}/{x}/{y}.png?appid=${openWeatherMapApiKey}`}
-                        attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
-                        opacity={0.6}
-                      />
-                    </LayersControl.Overlay>
-                    <LayersControl.Overlay name="Weather (Wind)">
-                      <TileLayer
-                        url={`https://tile.openweathermap.org/map/wind_new/{z}/{x}/{y}.png?appid=${openWeatherMapApiKey}`}
-                        attribution='&copy; <a href="https://openweathermap.org/">OpenWeatherMap</a>'
-                        opacity={0.6}
-                      />
-                    </LayersControl.Overlay>
-                  </>
-                )}
+                <LayersControl.Overlay checked name="Weather (Open-Meteo)">
+                    <GeoJSON
+                      key={JSON.stringify(weather)}
+                      data={{
+                          type: 'FeatureCollection',
+                          features: weather.map(w => ({
+                              type: 'Feature',
+                              properties: w,
+                              geometry: {
+                                  type: 'Point',
+                                  coordinates: [w.longitude, w.latitude]
+                              }
+                          }))
+                      }}
+                      pointToLayer={(feature, latlng) => {
+                        const w = feature.properties as WeatherUpdate;
+                        return L.marker(latlng, { icon: weatherIcon(w.temperature) });
+                      }}
+                      onEachFeature={(feature, layer) => {
+                        const w = feature.properties as WeatherUpdate;
+                        layer.bindPopup(`
+                            <div class="text-sm font-mono">
+                                <h3 class="font-bold text-base mb-1 text-blue-300">Weather: ${w.id.replace('_', ' ')}</h3>
+                                <p><strong>Temperature:</strong> ${w.temperature.toFixed(1)}&deg;C</p>
+                                <p><strong>Wind:</strong> ${w.windspeed.toFixed(1)} km/h</p>
+                                <p class="text-xs mt-2 text-muted-foreground">
+                                    ${formatDistanceToNow(w.timestamp.toDate(), { addSuffix: true })}
+                                </p>
+                            </div>
+                        `);
+                      }}
+                    />
+                </LayersControl.Overlay>
             </LayersControl>
         </MapContainer>
     </>

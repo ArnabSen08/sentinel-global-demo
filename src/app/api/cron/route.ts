@@ -4,7 +4,8 @@ import {
     fetchAndStoreEonetData, 
     fetchAndStoreShippingData,
     fetchAndStoreFlightsData,
-    fetchAndStoreStockData
+    fetchAndStoreStockData,
+    fetchAndStoreWeatherData
 } from '@/app/actions';
 import { NextResponse } from 'next/server';
 
@@ -19,14 +20,16 @@ export async function GET(req: Request) {
         eonetResult, 
         shippingResult,
         flightsResult,
-        stocksResult
+        stocksResult,
+        weatherResult
     ] = await Promise.all([
       fetchAndStoreFirmsData(),
       fetchAndStoreUsgsData(),
       fetchAndStoreEonetData(),
       fetchAndStoreShippingData(),
       fetchAndStoreFlightsData(),
-      fetchAndStoreStockData()
+      fetchAndStoreStockData(),
+      fetchAndStoreWeatherData()
     ]);
 
     const results = {
@@ -35,7 +38,8 @@ export async function GET(req: Request) {
       eonet: eonetResult,
       shipping: shippingResult,
       flights: flightsResult,
-      stocks: stocksResult
+      stocks: stocksResult,
+      weather: weatherResult
     };
     
     const hasError = Object.values(results).some(r => !r.success);

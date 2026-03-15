@@ -7,7 +7,7 @@ import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometr
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Earthquake, EonetEvent, Ship, Flight, IssPosition } from '@/types';
+import type { Incident, Earthquake, EonetEvent, Ship, Flight, IssPosition, WeatherUpdate } from '@/types';
 import * as turf from '@turf/turf';
 import { useToast } from "@/hooks/use-toast";
 
@@ -313,6 +313,7 @@ export default function GlobeView() {
     const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
     const [ships, setShips] = useState<Ship[]>([]);
     const [flights, setFlights] = useState<Flight[]>([]);
+    const [weather, setWeather] = useState<WeatherUpdate[]>([]);
     const [countries, setCountries] = useState({ features: [] });
     const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
     const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
@@ -331,6 +332,8 @@ export default function GlobeView() {
                 setShips(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Ship[])),
             onSnapshot(query(collection(firestore, 'flights'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
                 setFlights(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Flight[])),
+            onSnapshot(query(collection(firestore, 'weather'), limit(50)), (snapshot) => 
+                setWeather(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as WeatherUpdate[])),
         ];
 
         async function fetchIssPosition() {
@@ -435,6 +438,7 @@ export default function GlobeView() {
                 <p>Earthquakes: {earthquakes.length}</p>
                 <p>Active Ships: {ships.length}</p>
                 <p>Active Flights: {flights.length}</p>
+                <p>Weather Points: {weather.length}</p>
                 {issPosition && <p className="text-yellow-400 mt-2">ISS Altitude: {issPosition.altitude.toFixed(0)} km</p>}
             </div>
              <div className="absolute bottom-4 left-4 p-2 rounded-lg bg-black/50 text-white font-mono text-xs">

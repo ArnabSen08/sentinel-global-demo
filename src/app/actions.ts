@@ -1,8 +1,9 @@
+
 "use server";
 
 import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import type { Incident, Earthquake, EonetEvent, Ship, Flight, StockUpdate } from "@/types";
+import type { Incident, Earthquake, EonetEvent, Ship, Flight, StockUpdate, WeatherUpdate } from "@/types";
 
 /**
  * Generates 10 random mock incidents across the globe and saves them to Firestore.
@@ -411,7 +412,7 @@ export async function fetchAndStoreStockData() {
     }
 
     // Example: Fetching major indices from Financial Modeling Prep
-    const tickers = ['^GSPC', '^IXIC', '^FTSE', '^N225', '^GDAXI'];
+    const tickers = ['^GSPC', '^IXIC', '^FTSE', '^N225', '^GDAXI', '000001.SS', '^BSESN'];
     const url = `https://financialmodelingprep.com/api/v3/quote/${tickers.join(',')}?apikey=${apiKey}`;
 
     try {
@@ -454,4 +455,75 @@ export async function fetchAndStoreStockData() {
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message: `An error occurred while fetching stock data: ${errorMessage}` };
     }
+}
+
+/**
+ * Fetches real-time weather data from Open-Meteo for major cities
+ * and stores it in the 'weather' Firestore collection.
+ */
+export async function fetchAndStoreWeatherData() {
+  if (!isFirebaseAdminInitialized) {
+    const message = "Firebase Admin is not initialized. Cannot store weather data.";
+    console.error(message);
+    return { success: false, message };
+  }
+
+  const cities = {
+    'New York': { lat: 40.71, lon: -74.01 },
+    'London': { lat: 51.51, lon: -0.13 },
+    'Tokyo': { lat: 35.69, lon: 139.69 },
+    'Sydney': { lat: -33.87, lon: 151.21 },
+    'Cairo': { lat: 30.05, lon: 31.24 },
+    'Sao Paulo': { lat: -23.55, lon: -46.63 },
+    'Beijing': { lat: 39.91, lon: 116.40 },
+  };
+
+  const latitudes = Object.values(cities).map(c => c.lat.toFixed(2)).join(',');
+  const longitudes = Object.values(cities).map(c => c.lon.toFixed(2)).join(',');
+
+  const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitudes}&longitude=${longitudes}&current=temperature_2m,wind_speed_10m`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`Open-Meteo API request failed with status: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data || !data.current || !Array.isArray(data.current.temperature_2m)) {
+        return { success: true, message: "No new weather data found or invalid API response format." };
+    }
+
+    const cityNames = Object.keys(cities);
+    const batch = adminDb.batch();
+    const weatherCollection = adminDb.collection("weather");
+
+    data.current.temperature_2m.forEach((temp: number, index: number) => {
+      const cityName = cityNames[index];
+      const cityCoords = Object.values(cities)[index];
+      const windSpeed = data.current.wind_speed_10m[index];
+      
+      const newWeather: Omit<WeatherUpdate, 'id'> = {
+        latitude: cityCoords.lat,
+        longitude: cityCoords.lon,
+        temperature: temp,
+        windspeed: windSpeed,
+        timestamp: Timestamp.now(),
+      };
+
+      const docId = cityName.replace(/\s+/g, '_');
+      const docRef = weatherCollection.doc(docId);
+      batch.set(docRef, newWeather, { merge: true });
+    });
+
+    await batch.commit();
+
+    return { success: true, message: `Successfully processed and stored weather for ${cityNames.length} cities.` };
+
+  } catch (error) {
+    console.error("Error fetching or storing Open-Meteo data:", error);
+    const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+    return { success: false, message: `An error occurred while fetching weather data: ${errorMessage}` };
+  }
 }

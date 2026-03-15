@@ -1,10 +1,11 @@
+
 "use client";
 
 import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Flight, Earthquake, EonetEvent, Ship } from '@/types';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
@@ -20,19 +21,21 @@ export default function SentinelDashboard() {
   const [earthquakes, setEarthquakes] = useState<Earthquake[]>([]);
   const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
+  const [weather, setWeather] = useState<WeatherUpdate[]>([]);
 
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
-  
-  const [openWeatherMapApiKey, setOpenWeatherMapApiKey] = useState<string | undefined>();
 
   useEffect(() => {
     setLoading(true);
     const subscribers: (() => void)[] = [];
 
-    const setupListener = (collectionName: string, setter: React.Dispatch<any>, orderField = 'timestamp') => {
+    const setupListener = (collectionName: string, setter: React.Dispatch<any>, orderField: string | null = 'timestamp') => {
         const coll = collection(firestore, collectionName);
-        const q = query(coll, orderBy(orderField, 'desc'), limit(1000)); // Increased limit
+        const q = orderField 
+            ? query(coll, orderBy(orderField, 'desc'), limit(1000))
+            : query(coll, limit(1000));
+
         const unsubscribe = onSnapshot(q, (snapshot) => {
             const data = snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() }));
             setter(data);
@@ -54,15 +57,8 @@ export default function SentinelDashboard() {
     setupListener('eonet_events', setEonetEvents);
     setupListener('ships', setShips);
     setupListener('flights', setFlights);
+    setupListener('weather', setWeather, null);
     
-    // Set OpenWeatherMap API key
-    const owmKey = process.env.NEXT_PUBLIC_OPENWEATHERMAP_API_KEY;
-    if (owmKey && owmKey !== 'REPLACE_WITH_YOUR_OPENWEATHERMAP_API_KEY') {
-        setOpenWeatherMapApiKey(owmKey);
-    } else {
-        console.warn("OpenWeatherMap API key is not configured. Weather layers will be unavailable.");
-    }
-
     return () => {
       subscribers.forEach(unsub => unsub());
     };
@@ -82,7 +78,7 @@ export default function SentinelDashboard() {
             earthquakes={earthquakes}
             eonetEvents={eonetEvents}
             ships={ships}
-            openWeatherMapApiKey={openWeatherMapApiKey}
+            weather={weather}
         />
       </main>
     </div>

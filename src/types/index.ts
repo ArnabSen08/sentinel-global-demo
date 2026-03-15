@@ -1,3 +1,4 @@
+
 import type { Timestamp } from 'firebase/firestore';
 
 export interface Incident {
@@ -62,4 +63,13 @@ export interface StockUpdate {
     price: number;
     change: number;
     timestamp: Timestamp;
+}
+
+export interface WeatherUpdate {
+  id: string; // City name
+  latitude: number;
+  longitude: number;
+  temperature: number;
+  windspeed: number;
+  timestamp: Timestamp;
 }
