@@ -1,8 +1,9 @@
+
 "use client";
 import React, { useRef, useState, useEffect, useMemo } from 'react';
-import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { TextureLoader, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, Color, MeshPhongMaterial } from 'three';
+import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, Color, MeshPhongMaterial } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
@@ -21,25 +22,10 @@ const latLonToVector3 = (lat: number, lon: number, radius: number) => {
 };
 
 function Earth() {
-    const [colorMap, normalMap, specularMap, emissiveMap] = useLoader(TextureLoader, [
-        'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
-        'https://unpkg.com/three-globe/example/img/earth-topology.png',
-        'https://unpkg.com/three-globe/example/img/earth-specular.png',
-        'https://unpkg.com/three-globe/example/img/earth-night.jpg'
-    ]);
-
     return (
         <mesh>
             <sphereGeometry args={[5, 64, 64]} />
-            <MeshPhongMaterial
-                map={colorMap}
-                normalMap={normalMap}
-                specularMap={specularMap}
-                shininess={10}
-                emissiveMap={emissiveMap}
-                emissive={new Color(0xffffff)}
-                emissiveIntensity={1.2}
-            />
+            <meshBasicMaterial color="#000011" />
         </mesh>
     );
 }
@@ -295,3 +281,5 @@ export default function GlobeView() {
         </div>
     );
 }
+
+    
