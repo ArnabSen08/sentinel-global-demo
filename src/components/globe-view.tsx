@@ -6,7 +6,7 @@ import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometr
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Earthquake, EonetEvent, Ship, Flight } from '@/types';
+import type { Incident, Earthquake, EonetEvent, Ship, Flight, IssPosition } from '@/types';
 
 // Helper function to convert lat/lon to a 3D vector
 const latLonToVector3 = (lat: number, lon: number, radius: number) => {
@@ -206,12 +206,28 @@ function Flights({ data }: { data: Flight[] }) {
     );
 }
 
-function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries }: {
+function ISS({ position }: { position: IssPosition }) {
+    // Earth's radius in the model is 5. Earth's actual radius is ~6371km.
+    const issAltitudeScale = position.altitude / 6371;
+    const issRadius = 5 * (1 + issAltitudeScale);
+    
+    const issPositionVector = latLonToVector3(position.latitude, position.longitude, issRadius);
+
+    const issMaterial = useMemo(() => new MeshBasicMaterial({ color: '#FFFF00', toneMapped: false }), []);
+    const issGeometry = useMemo(() => new SphereGeometry(0.05, 16, 16), []);
+
+    return (
+        <mesh position={issPositionVector} geometry={issGeometry} material={issMaterial} />
+    );
+}
+
+function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, issPosition }: {
     allIncidents: (Incident | EonetEvent)[];
     earthquakes: Earthquake[];
     ships: Ship[];
     allFlights: Flight[];
     countries: any;
+    issPosition: IssPosition | null;
 }) {
     const controlsRef = useRef<any>();
     const [isUserInteracting, setIsUserInteracting] = useState(false);
@@ -238,6 +254,7 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries }:
                 <Earthquakes data={earthquakes} />
                 <Ships data={ships} />
                 <Flights data={allFlights} />
+                {issPosition && <ISS position={issPosition} />}
             </React.Suspense>
             
             <OrbitControls
@@ -268,6 +285,7 @@ export default function GlobeView() {
     const [flights, setFlights] = useState<Flight[]>([]);
     const [aviationStackFlights, setAviationStackFlights] = useState<Flight[]>([]);
     const [countries, setCountries] = useState({ features: [] });
+    const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
 
     useEffect(() => {
         const listeners = [
@@ -280,6 +298,21 @@ export default function GlobeView() {
             onSnapshot(query(collection(firestore, 'ships'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
                 setShips(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Ship[])),
         ];
+
+        async function fetchIssPosition() {
+            try {
+                const response = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+                if (response.ok) {
+                    const data = await response.json();
+                    setIssPosition(data as IssPosition);
+                }
+            } catch (error) {
+                console.error("Error fetching ISS position:", error);
+            }
+        }
+
+        fetchIssPosition();
+        const issInterval = setInterval(fetchIssPosition, 5000);
 
         async function fetchFlights() {
             const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
@@ -315,7 +348,10 @@ export default function GlobeView() {
 
         fetchFlights();
         
-        return () => listeners.forEach(unsubscribe => unsubscribe());
+        return () => {
+            listeners.forEach(unsubscribe => unsubscribe());
+            clearInterval(issInterval);
+        };
     }, []);
     
     const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
@@ -331,6 +367,7 @@ export default function GlobeView() {
                     ships={ships}
                     allFlights={allFlights}
                     countries={countries}
+                    issPosition={issPosition}
                 />
             </Canvas>
             <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
@@ -339,6 +376,7 @@ export default function GlobeView() {
                 <p>Earthquakes: {earthquakes.length}</p>
                 <p>Active Ships: {ships.length}</p>
                 <p>Active Flights: {allFlights.length}</p>
+                {issPosition && <p className="text-yellow-400 mt-2">ISS Altitude: {issPosition.altitude.toFixed(0)} km</p>}
             </div>
              <div className="absolute bottom-4 left-4 p-2 rounded-lg bg-black/50 text-white font-mono text-xs">
                 <p>3D Globe View | SENTINEL</p>

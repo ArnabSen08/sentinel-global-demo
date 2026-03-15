@@ -46,3 +46,12 @@ export interface Ship {
   timestamp: Timestamp;
   heading: number;
 }
+
+export interface IssPosition {
+  id: number;
+  name: string;
+  latitude: number;
+  longitude: number;
+  altitude: number;
+  velocity: number;
+}
