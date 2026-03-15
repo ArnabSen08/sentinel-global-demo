@@ -259,56 +259,86 @@ export async function fetchAndStoreEonetData() {
 }
 
 /**
- * Generates mock shipping data and stores it in Firestore.
+ * Fetches real-time shipping data from Airstream API and stores it in Firestore.
  */
 export async function fetchAndStoreShippingData() {
     if (!isFirebaseAdminInitialized) {
-        const message = "Firebase Admin is not initialized. Cannot generate mock shipping data.";
+        const message = "Firebase Admin is not initialized. Cannot fetch shipping data.";
         console.error(message);
         return { success: false, message };
     }
+
+    const apiKey = process.env.AISTREAM_API_KEY;
+    if (!apiKey) {
+        const message = "Airstream API key (AISTREAM_API_KEY) is not configured in environment variables. Shipping data will not be available.";
+        console.warn(message);
+        return { success: false, message };
+    }
+
+    // NOTE: This is a presumed endpoint for an API like Spire Maritime.
+    const url = 'https://api.aistream.io/v2/vessels'; 
+
     try {
-        const batch = adminDb.batch();
-        const shippingCollection = adminDb.collection("ships");
-        const shippingLanes = [
-            { name: "Suez Canal", path: [{ lat: 30.0, lon: 32.5 }, { lat: 12.6, lon: 43.3 }] },
-            { name: "Strait of Malacca", path: [{ lat: 1.2, lon: 103.8 }, { lat: 5.8, lon: 95.3 }] },
-            { name: "Panama Canal", path: [{ lat: 9.0, lon: -79.7 }, { lat: 8.5, lon: -80.0 }] },
-            { name: "Trans-Pacific", path: [{ lat: 34.0, lon: -118.2 }, { lat: 35.6, lon: 139.6 }] },
-            { name: "Trans-Atlantic", path: [{ lat: 51.5, lon: -0.1 }, { lat: 40.7, lon: -74.0 }] },
-        ];
-        let newShipsCount = 0;
+        const response = await fetch(url, {
+            headers: { 'Authorization': `Bearer ${apiKey}` }
+        });
+
+        if (!response.ok) {
+            // If the API call fails, we'll just log it and won't clear existing data.
+            // This prevents the map from going blank if the API is temporarily down.
+            throw new Error(`Airstream API request failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
         
-        // Clear old mock data
-        const snapshot = await shippingCollection.limit(500).get();
-        if(!snapshot.empty) {
-          snapshot.docs.forEach(doc => batch.delete(doc.ref));
+        // NOTE: This is a presumed response structure, similar to Spire's Maritime API.
+        if (!data || !Array.isArray(data.data)) {
+             return { success: true, message: "No new shipping data found or invalid API response format." };
         }
 
-        for (const lane of shippingLanes) {
-            for (let i = 0; i < 15; i++) { // 15 ships per lane
-                const t = Math.random();
-                const lat = lane.path[0].lat + t * (lane.path[1].lat - lane.path[0].lat);
-                const lon = lane.path[0].lon + t * (lane.path[1].lon - lane.path[0].lon);
-                
-                const heading = Math.atan2(lane.path[1].lat - lane.path[0].lat, lane.path[1].lon - lane.path[0].lon) * 180 / Math.PI;
+        const batch = adminDb.batch();
+        const shipsCollection = adminDb.collection("ships");
+        let newShipsCount = 0;
 
-                const newShip: Omit<Ship, 'id'> = {
-                    latitude: lat + (Math.random() - 0.5), // Add some jitter
-                    longitude: lon + (Math.random() - 0.5),
-                    timestamp: Timestamp.now(),
-                    heading: heading,
-                };
-                const docRef = shippingCollection.doc();
-                batch.set(docRef, newShip);
-                newShipsCount++;
-            }
+        // Clear out old ship data to only show the latest positions.
+        const snapshot = await shipsCollection.limit(1000).get(); // A batch can handle up to 500 writes. We will overwrite.
+        const existingShipIds = new Set(snapshot.docs.map(d => d.id));
+
+        for (const ship of data.data) {
+            // Presumed ship object structure from a maritime API like Spire's
+            const { id, last_known_position } = ship;
+            
+            if (!id || !last_known_position || !last_known_position.geometry || !last_known_position.geometry.coordinates) continue;
+
+            const [longitude, latitude] = last_known_position.geometry.coordinates;
+            
+            const newShip: Omit<Ship, 'id'> = {
+                latitude: latitude,
+                longitude: longitude,
+                timestamp: Timestamp.fromDate(new Date(last_known_position.timestamp)),
+                heading: last_known_position.heading || last_known_position.course_over_ground || 0,
+            };
+
+            // Use the ship's unique ID from the API as the document ID
+            const docId = String(ship.mmsi || id);
+            const docRef = shipsCollection.doc(docId);
+            batch.set(docRef, newShip); // Overwrite existing document with fresh data
+            newShipsCount++;
+            existingShipIds.delete(docId);
         }
+        
+        // Delete any ships that are no longer in the API feed
+        existingShipIds.forEach(shipId => {
+            batch.delete(shipsCollection.doc(shipId));
+        });
+
         await batch.commit();
-        return { success: true, message: `Successfully generated ${newShipsCount} mock ships.` };
+
+        return { success: true, message: `Successfully processed and stored ${newShipsCount} ships.` };
+
     } catch (error) {
-        console.error("Error generating mock shipping data:", error);
+        console.error("Error fetching or storing Airstream shipping data:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
-        return { success: false, message: `Failed to generate mock shipping data: ${errorMessage}` };
+        return { success: false, message: `An error occurred while fetching shipping data: ${errorMessage}` };
     }
 }
