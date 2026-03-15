@@ -74,6 +74,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
             id: q.id,
             pos: latLonToVector3(q.latitude, q.longitude, 5.02),
             magnitude: q.magnitude,
+            isMajor: q.magnitude > 5.0,
             life: 1.0, // Lifespan of the animation
         }));
         // Avoid adding duplicates
@@ -87,31 +88,48 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
     useFrame((_, delta) => {
         if (!activeQuakes.length) return;
         
-        const updatedQuakes = activeQuakes.map(q => ({...q, life: q.life - delta * 0.2})).filter(q => q.life > 0);
+        const updatedQuakes = activeQuakes.map(q => ({
+            ...q, 
+            life: q.life - delta * (q.isMajor ? 0.3 : 0.2) // Faster fade for major quakes
+        })).filter(q => q.life > 0);
+
         setActiveQuakes(updatedQuakes);
     });
 
     return (
         <group>
-            {activeQuakes.map(quake => (
-                <mesh key={quake.id} position={quake.pos} lookAt={new Vector3(0,0,0)}>
-                    <ringGeometry args={[
-                        0.05 + (quake.magnitude * 0.05) * (1 - quake.life),
-                        0.1 + (quake.magnitude * 0.05) * (1 - quake.life),
-                        32
-                    ]} />
-                    <meshBasicMaterial
-                        color="red"
-                        transparent
-                        opacity={quake.life}
-                        side={DoubleSide}
-                        toneMapped={false}
-                    />
-                </mesh>
-            ))}
+            {activeQuakes.map(quake => {
+                const isMajor = quake.isMajor;
+                const scale = 1 - quake.life; // 0 to 1
+                
+                // For major quakes, make the ring expand further and be more prominent
+                const innerRadius = isMajor ? 0.05 + (quake.magnitude * 0.1) * scale : 0.05 + (quake.magnitude * 0.05) * scale;
+                const outerRadius = isMajor ? 0.1 + (quake.magnitude * 0.1) * scale : 0.1 + (quake.magnitude * 0.05) * scale;
+                
+                // Create a pulsing opacity effect for major quakes
+                const opacity = isMajor ? Math.sin(quake.life * Math.PI) * 0.9 : quake.life * 0.7;
+
+                return (
+                    <mesh key={quake.id} position={quake.pos} lookAt={new Vector3(0,0,0)}>
+                        <ringGeometry args={[
+                            innerRadius,
+                            outerRadius,
+                            32
+                        ]} />
+                        <meshBasicMaterial
+                            color={isMajor ? "#ff0000" : "#ff8000"} // Brighter red for major, orange for minor
+                            transparent
+                            opacity={opacity}
+                            side={DoubleSide}
+                            toneMapped={false}
+                        />
+                    </mesh>
+                );
+            })}
         </group>
     );
 }
+
 
 function Ships({ data }: { data: Ship[] }) {
     const shipMaterial = useMemo(() => new MeshBasicMaterial({ color: "cyan", toneMapped: false }), []);
@@ -281,5 +299,7 @@ export default function GlobeView() {
         </div>
     );
 }
+
+    
 
     
