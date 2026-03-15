@@ -22,11 +22,12 @@ const latLonToVector3 = (lat: number, lon: number, radius: number) => {
 
 function Earth() {
     const [colorMap, normalMap, specularMap, emissiveMap] = useLoader(TextureLoader, [
-        'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-dark.jpg',
-        'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png',
-        'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-specular.png',
-        'https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg'
+        'https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg',
+        'https://unpkg.com/three-globe/example/img/earth-topology.png',
+        'https://unpkg.com/three-globe/example/img/earth-specular.png',
+        'https://unpkg.com/three-globe/example/img/earth-night.jpg'
     ]);
+
     return (
         <mesh>
             <sphereGeometry args={[5, 64, 64]} />
@@ -59,7 +60,7 @@ function Atmosphere() {
 }
 
 function Incidents({ data }: { data: (Incident | EonetEvent)[] }) {
-    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: '#ff8000', toneMapped: false }), []);
+    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: '#ff4000', toneMapped: false }), []);
 
     const incidents = useMemo(() => data.map(d => {
         const pos = latLonToVector3(d.latitude, d.longitude, 5);
@@ -172,9 +173,10 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
     const controlsRef = useRef<any>();
     const [isUserInteracting, setIsUserInteracting] = useState(false);
 
-    useFrame(() => {
+    useFrame(({ clock }) => {
         if (!isUserInteracting && controlsRef.current) {
-            controlsRef.current.object.rotation.y += 0.0005;
+            controlsRef.current.object.position.x = 15 * Math.sin(clock.getElapsedTime() * 0.1);
+            controlsRef.current.object.position.z = 15 * Math.cos(clock.getElapsedTime() * 0.1);
             controlsRef.current.update();
         }
     });
@@ -202,7 +204,6 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
                 maxDistance={25}
                 onStart={() => setIsUserInteracting(true)}
                 onEnd={() => {
-                   // Using a timeout to avoid stopping rotation on click
                    const timeout = setTimeout(() => setIsUserInteracting(false), 2000);
                    return () => clearTimeout(timeout);
                 }}
@@ -235,8 +236,6 @@ export default function GlobeView() {
                 setShips(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Ship[])),
         ];
 
-        // We use a separate state for flights from aviationstack to avoid storing them in firestore
-        // and just fetch them on client load.
         async function fetchFlights() {
             const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
             if (!apiKey) return;
