@@ -1,5 +1,6 @@
+
 "use client";
-import React, { useRef, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, LineBasicMaterial, BufferGeometry } from 'three';
@@ -7,6 +8,8 @@ import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
 import type { Incident, Earthquake, EonetEvent, Ship, Flight, IssPosition } from '@/types';
+import * as turf from '@turf/turf';
+import { useToast } from "@/hooks/use-toast";
 
 // Helper function to convert lat/lon to a 3D vector
 const latLonToVector3 = (lat: number, lon: number, radius: number) => {
@@ -20,50 +23,71 @@ const latLonToVector3 = (lat: number, lon: number, radius: number) => {
     return new Vector3(x, y, z);
 };
 
-function Earth() {
+// Helper function to convert a 3D vector on sphere back to lat/lon
+const vector3ToLatLon = (vector: Vector3, radius: number) => {
+    const { x, y, z } = vector;
+    const lat = 90 - (Math.acos(y / radius)) * 180 / Math.PI;
+    const lon = ((Math.atan2(z, -x)) * 180 / Math.PI) - 180;
+    return { lat, lon };
+};
+
+function Earth({ onPointerMove, onPointerOut, onClick }: { 
+    onPointerMove: (e: any) => void;
+    onPointerOut: (e: any) => void;
+    onClick: (e: any) => void;
+}) {
     return (
-        <mesh>
+        <mesh 
+            onPointerMove={onPointerMove}
+            onPointerOut={onPointerOut}
+            onClick={onClick}
+        >
             <sphereGeometry args={[5, 64, 64]} />
             <meshBasicMaterial color="#000011" />
         </mesh>
     );
 }
 
-function Countries({ data }: { data: any }) {
-    const lines = useMemo(() => {
-        if (!data || !data.features) return [];
-        const allLines: { id: string; geometry: BufferGeometry }[] = [];
+function Countries({ data, hoveredCountry }: { data: any; hoveredCountry: string | null }) {
+    const { lines, hoveredLines } = useMemo(() => {
+        if (!data || !data.features) return { lines: [], hoveredLines: [] };
         
+        const allLines: { id: string; geometry: BufferGeometry }[] = [];
+        const allHoveredLines: { id: string; geometry: BufferGeometry }[] = [];
+
         data.features.forEach((feat: any) => {
             const { type } = feat.geometry;
             const coords = feat.geometry.coordinates;
-            const id = feat.properties.ISO_A3 || feat.id;
+            const id = feat.properties.ISO_A3;
+            const targetArray = id === hoveredCountry ? allHoveredLines : allLines;
+
+            const processPolygon = (poly: any) => {
+                const points = poly.map((p: number[]) => latLonToVector3(p[1], p[0], 5.002));
+                const geometry = new BufferGeometry().setFromPoints(points);
+                targetArray.push({ id: `${id}-${targetArray.length}`, geometry });
+            };
 
             if (type === 'Polygon') {
-                coords.forEach((poly: any) => {
-                    const points = poly.map((p: number[]) => latLonToVector3(p[1], p[0], 5.001));
-                    const geometry = new BufferGeometry().setFromPoints(points);
-                    allLines.push({ id: `${id}-${allLines.length}`, geometry });
-                });
+                coords.forEach(processPolygon);
             } else if (type === 'MultiPolygon') {
                 coords.forEach((multiPoly: any) => {
-                    multiPoly.forEach((poly: any) => {
-                        const points = poly.map((p: number[]) => latLonToVector3(p[1], p[0], 5.001));
-                        const geometry = new BufferGeometry().setFromPoints(points);
-                        allLines.push({ id: `${id}-${allLines.length}`, geometry });
-                    });
+                    multiPoly.forEach(processPolygon);
                 });
             }
         });
-        return allLines;
-    }, [data]);
+        return { lines: allLines, hoveredLines: allHoveredLines };
+    }, [data, hoveredCountry]);
 
-    const material = useMemo(() => new LineBasicMaterial({ color: '#334155', toneMapped: false }), []); // Muted slate color
+    const material = useMemo(() => new LineBasicMaterial({ color: '#334155', toneMapped: false }), []);
+    const hoveredMaterial = useMemo(() => new LineBasicMaterial({ color: 'hsl(var(--primary))', toneMapped: false }), []);
 
     return (
         <group>
             {lines.map(line => (
                 <line key={line.id} geometry={line.geometry} material={material} />
+            ))}
+            {hoveredLines.map(line => (
+                <line key={line.id} geometry={line.geometry} material={hoveredMaterial} />
             ))}
         </group>
     );
@@ -221,13 +245,17 @@ function ISS({ position }: { position: IssPosition }) {
     );
 }
 
-function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, issPosition }: {
+function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, issPosition, hoveredCountry, onPointerMove, onPointerOut, onClick }: {
     allIncidents: (Incident | EonetEvent)[];
     earthquakes: Earthquake[];
     ships: Ship[];
     allFlights: Flight[];
     countries: any;
     issPosition: IssPosition | null;
+    hoveredCountry: string | null;
+    onPointerMove: (e: any) => void;
+    onPointerOut: (e: any) => void;
+    onClick: (e: any) => void;
 }) {
     const controlsRef = useRef<any>();
     const [isUserInteracting, setIsUserInteracting] = useState(false);
@@ -247,9 +275,9 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, i
             <Stars radius={300} depth={50} count={5000} factor={4} saturation={0} fade />
 
             <React.Suspense fallback={null}>
-                <Earth />
+                <Earth onPointerMove={onPointerMove} onPointerOut={onPointerOut} onClick={onClick} />
                 <Atmosphere />
-                <Countries data={countries} />
+                <Countries data={countries} hoveredCountry={hoveredCountry} />
                 <Incidents data={allIncidents} />
                 <Earthquakes data={earthquakes} />
                 <Ships data={ships} />
@@ -286,6 +314,9 @@ export default function GlobeView() {
     const [aviationStackFlights, setAviationStackFlights] = useState<Flight[]>([]);
     const [countries, setCountries] = useState({ features: [] });
     const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
+    const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
+    const { toast } = useToast();
+
 
     useEffect(() => {
         const listeners = [
@@ -354,6 +385,57 @@ export default function GlobeView() {
         };
     }, []);
     
+    const findCountry = useCallback((point3d: Vector3): any | null => {
+        if (!countries.features.length) return null;
+        const { lat, lon } = vector3ToLatLon(point3d, 5);
+        const clickedPoint = turf.point([lon, lat]);
+
+        for (const feature of countries.features) {
+            let isInside = false;
+            if (feature.geometry.type === 'Polygon') {
+                isInside = turf.booleanPointInPolygon(clickedPoint, feature.geometry);
+            } else if (feature.geometry.type === 'MultiPolygon') {
+                for (const polygonCoords of feature.geometry.coordinates) {
+                    const poly = turf.polygon(polygonCoords);
+                    if (turf.booleanPointInPolygon(clickedPoint, poly)) {
+                        isInside = true;
+                        break;
+                    }
+                }
+            }
+            
+            if (isInside) {
+                return feature;
+            }
+        }
+        return null;
+    }, [countries]);
+
+    const handlePointerMove = useCallback((e: any) => {
+        e.stopPropagation();
+        const country = findCountry(e.point);
+        const countryId = country ? country.properties.ISO_A3 : null;
+        if (countryId !== hoveredCountry) {
+            setHoveredCountry(countryId);
+        }
+    }, [findCountry, hoveredCountry]);
+    
+    const handlePointerOut = useCallback(() => {
+        setHoveredCountry(null);
+    }, []);
+
+    const handleClick = useCallback((e: any) => {
+        e.stopPropagation();
+        const country = findCountry(e.point);
+        if (country) {
+            toast({
+                title: `Country: ${country.properties.NAME}`,
+                description: `Region: ${country.properties.SUBREGION}`,
+            });
+        }
+    }, [findCountry, toast]);
+
+
     const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
     const allFlights = useMemo(() => [...flights, ...aviationStackFlights], [flights, aviationStackFlights]);
 
@@ -368,6 +450,10 @@ export default function GlobeView() {
                     allFlights={allFlights}
                     countries={countries}
                     issPosition={issPosition}
+                    hoveredCountry={hoveredCountry}
+                    onPointerMove={handlePointerMove}
+                    onPointerOut={handlePointerOut}
+                    onClick={handleClick}
                 />
             </Canvas>
             <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
