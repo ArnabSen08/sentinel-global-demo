@@ -22,10 +22,10 @@ const latLonToVector3 = (lat: number, lon: number, radius: number) => {
 
 function Earth() {
     const [colorMap, normalMap, specularMap, emissiveMap] = useLoader(TextureLoader, [
-        '//unpkg.com/three-globe/example/img/earth-dark.jpg',
-        '//unpkg.com/three-globe/example/img/earth-topology.png',
-        '//unpkg.com/three-globe/example/img/earth-specular.png',
-        '//unpkg.com/three-globe/example/img/earth-night.jpg'
+        'https://unpkg.com/three-globe/example/img/earth-dark.jpg',
+        'https://unpkg.com/three-globe/example/img/earth-topology.png',
+        'https://unpkg.com/three-globe/example/img/earth-specular.png',
+        'https://unpkg.com/three-globe/example/img/earth-night.jpg'
     ]);
     return (
         <mesh>
