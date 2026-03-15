@@ -78,7 +78,7 @@ function Countries({ data, hoveredCountry }: { data: any; hoveredCountry: string
         return { lines: allLines, hoveredLines: allHoveredLines };
     }, [data, hoveredCountry]);
 
-    const material = useMemo(() => new LineBasicMaterial({ color: '#334155', toneMapped: false }), []);
+    const material = useMemo(() => new LineBasicMaterial({ color: '#555', toneMapped: false }), []);
     const hoveredMaterial = useMemo(() => new LineBasicMaterial({ color: 'hsl(var(--primary))', toneMapped: false }), []);
 
     return (
