@@ -57,7 +57,7 @@
     @apply bg-background text-foreground;
     position: relative;
   }
-  /* CRT Scanline Effect */
+  /* CRT Scanline & Vignette Effect */
   body::after {
     content: " ";
     display: block;
@@ -66,10 +66,13 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
+    background: 
+      radial-gradient(ellipse at center, rgba(0,0,0,0) 60%, rgba(0,0,0,0.5) 100%),
+      linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.15) 50%), 
+      linear-gradient(90deg, rgba(255, 0, 0, 0.04), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.04));
     z-index: 10000;
     pointer-events: none;
-    background-size: 100% 2px, 3px 100%;
+    background-size: 100% 100%, 100% 2px, 3px 100%;
   }
 }
 

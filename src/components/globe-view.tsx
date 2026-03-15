@@ -2,7 +2,7 @@
 import React, { useRef, useState, useEffect, useMemo } from 'react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
-import { TextureLoader, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry } from 'three';
+import { TextureLoader, Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, Color, MeshPhongMaterial } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
@@ -21,19 +21,23 @@ const latLonToVector3 = (lat: number, lon: number, radius: number) => {
 };
 
 function Earth() {
-    const [colorMap, normalMap, specularMap] = useLoader(TextureLoader, [
+    const [colorMap, normalMap, specularMap, emissiveMap] = useLoader(TextureLoader, [
         '//unpkg.com/three-globe/example/img/earth-dark.jpg',
         '//unpkg.com/three-globe/example/img/earth-topology.png',
-        '//unpkg.com/three-globe/example/img/earth-water.png'
+        '//unpkg.com/three-globe/example/img/earth-specular.png',
+        '//unpkg.com/three-globe/example/img/earth-night.jpg'
     ]);
     return (
         <mesh>
             <sphereGeometry args={[5, 64, 64]} />
-            <meshPhongMaterial
+            <MeshPhongMaterial
                 map={colorMap}
                 normalMap={normalMap}
                 specularMap={specularMap}
-                shininess={100}
+                shininess={10}
+                emissiveMap={emissiveMap}
+                emissive={new Color(0xffffff)}
+                emissiveIntensity={1.2}
             />
         </mesh>
     );
@@ -41,15 +45,21 @@ function Earth() {
 
 function Atmosphere() {
     return (
-         <mesh scale={[1.05, 1.05, 1.05]}>
+         <mesh scale={[1.04, 1.04, 1.04]}>
             <sphereGeometry args={[5, 64, 64]} />
-            <meshBasicMaterial color="lightblue" transparent opacity={0.2} side={DoubleSide}/>
+            <meshBasicMaterial 
+              color="#73DDFF" 
+              transparent 
+              opacity={0.1} 
+              side={DoubleSide} 
+              toneMapped={false}
+            />
         </mesh>
     );
 }
 
 function Incidents({ data }: { data: (Incident | EonetEvent)[] }) {
-    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: 'red' }), []);
+    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: '#ff8000', toneMapped: false }), []);
 
     const incidents = useMemo(() => data.map(d => {
         const pos = latLonToVector3(d.latitude, d.longitude, 5);
@@ -108,6 +118,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
                         transparent
                         opacity={quake.life}
                         side={DoubleSide}
+                        toneMapped={false}
                     />
                 </mesh>
             ))}
@@ -116,7 +127,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
 }
 
 function Ships({ data }: { data: Ship[] }) {
-    const shipMaterial = useMemo(() => new MeshBasicMaterial({ color: "cyan" }), []);
+    const shipMaterial = useMemo(() => new MeshBasicMaterial({ color: "cyan", toneMapped: false }), []);
     const shipGeometry = useMemo(() => new SphereGeometry(0.02, 8, 8), []);
 
     const ships = useMemo(() => data.map(d => ({
@@ -133,7 +144,7 @@ function Ships({ data }: { data: Ship[] }) {
 }
 
 function Flights({ data }: { data: Flight[] }) {
-    const flightMaterial = useMemo(() => new MeshBasicMaterial({ color: "white" }), []);
+    const flightMaterial = useMemo(() => new MeshBasicMaterial({ color: "white", toneMapped: false }), []);
     const flightGeometry = useMemo(() => new SphereGeometry(0.015, 8, 8), []);
     
     const flights = useMemo(() => data
@@ -170,9 +181,9 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
 
     return (
         <>
-            <ambientLight intensity={0.2} />
-            <directionalLight position={[10, 10, 5]} intensity={1} />
-            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade />
+            <ambientLight intensity={0.1} />
+            <directionalLight position={[10, 10, 5]} intensity={1.5} />
+            <Stars radius={300} depth={50} count={5000} factor={4} saturation={0} fade />
 
             <React.Suspense fallback={null}>
                 <Earth />
@@ -197,7 +208,7 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights }: {
                 }}
             />
              <EffectComposer>
-                <Bloom luminanceThreshold={0.2} luminanceSmoothing={0.9} height={300} intensity={0.7} />
+                <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.9} height={300} intensity={1.2} />
             </EffectComposer>
         </>
     );
