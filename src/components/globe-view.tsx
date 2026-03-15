@@ -2,8 +2,8 @@
 "use client";
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars } from '@react-three/drei';
-import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, LineBasicMaterial, BufferGeometry } from 'three';
+import { OrbitControls, Stars, useTexture } from '@react-three/drei';
+import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, LineBasicMaterial, BufferGeometry, BackSide, AdditiveBlending } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
@@ -43,7 +43,7 @@ function Earth({ onPointerMove, onPointerOut, onClick }: {
             onClick={onClick}
         >
             <sphereGeometry args={[5, 64, 64]} />
-            <meshBasicMaterial color="#000011" />
+            <meshBasicMaterial color="#000011" transparent opacity={0.8} />
         </mesh>
     );
 }
@@ -99,10 +99,12 @@ function Atmosphere() {
          <mesh scale={[1.04, 1.04, 1.04]}>
             <sphereGeometry args={[5, 64, 64]} />
             <meshBasicMaterial 
-              color="#73DDFF" 
+              color="hsl(var(--primary))" 
               transparent 
               opacity={0.1} 
-              side={DoubleSide} 
+              side={BackSide} 
+              blending={AdditiveBlending}
+              depthWrite={false}
               toneMapped={false}
             />
         </mesh>
@@ -110,7 +112,7 @@ function Atmosphere() {
 }
 
 function Incidents({ data }: { data: (Incident | EonetEvent)[] }) {
-    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: '#ff4000', toneMapped: false }), []);
+    const incidentMaterial = useMemo(() => new MeshBasicMaterial({ color: 'hsl(var(--primary))', toneMapped: false }), []);
 
     const incidents = useMemo(() => data.map(d => {
         const pos = latLonToVector3(d.latitude, d.longitude, 5);
@@ -167,7 +169,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
                 const scale = 1 - quake.life; // 0 to 1
                 
                 const innerRadius = isMajor ? 0.05 + (quake.magnitude * 0.1) * scale : 0.05 + (quake.magnitude * 0.05) * scale;
-                const outerRadius = isMajor ? 0.1 + (quake.magnitude * 0.1) * scale : 0.1 + (quake.magnitude * 0.05) * scale;
+                const outerRadius = isMajor ? 0.1 + (quake.magnitude * 0.15) * scale : 0.1 + (quake.magnitude * 0.05) * scale;
                 
                 const opacity = isMajor ? Math.sin(quake.life * Math.PI) * 0.9 : quake.life * 0.7;
 
@@ -179,7 +181,7 @@ function Earthquakes({ data }: { data: Earthquake[] }) {
                             32
                         ]} />
                         <meshBasicMaterial
-                            color={isMajor ? "#ff0000" : "#ff8000"}
+                            color={isMajor ? "hsl(var(--destructive))" : "hsl(var(--primary))"}
                             transparent
                             opacity={opacity}
                             side={DoubleSide}
@@ -245,11 +247,11 @@ function ISS({ position }: { position: IssPosition }) {
     );
 }
 
-function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, issPosition, hoveredCountry, onPointerMove, onPointerOut, onClick }: {
+function GlobeScene({ allIncidents, earthquakes, ships, flights, countries, issPosition, hoveredCountry, onPointerMove, onPointerOut, onClick }: {
     allIncidents: (Incident | EonetEvent)[];
     earthquakes: Earthquake[];
     ships: Ship[];
-    allFlights: Flight[];
+    flights: Flight[];
     countries: any;
     issPosition: IssPosition | null;
     hoveredCountry: string | null;
@@ -281,7 +283,7 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, i
                 <Incidents data={allIncidents} />
                 <Earthquakes data={earthquakes} />
                 <Ships data={ships} />
-                <Flights data={allFlights} />
+                <Flights data={flights} />
                 {issPosition && <ISS position={issPosition} />}
             </React.Suspense>
             
@@ -298,7 +300,7 @@ function GlobeScene({ allIncidents, earthquakes, ships, allFlights, countries, i
                 }}
             />
              <EffectComposer>
-                <Bloom luminanceThreshold={0.05} luminanceSmoothing={0.9} height={300} intensity={1.2} />
+                <Bloom luminanceThreshold={0} luminanceSmoothing={0.9} height={300} intensity={0.8} />
             </EffectComposer>
         </>
     );
@@ -311,7 +313,6 @@ export default function GlobeView() {
     const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
     const [ships, setShips] = useState<Ship[]>([]);
     const [flights, setFlights] = useState<Flight[]>([]);
-    const [aviationStackFlights, setAviationStackFlights] = useState<Flight[]>([]);
     const [countries, setCountries] = useState({ features: [] });
     const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
     const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
@@ -326,8 +327,10 @@ export default function GlobeView() {
                 setEarthquakes(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Earthquake[])),
             onSnapshot(query(collection(firestore, 'eonet_events'), orderBy('timestamp', 'desc'), limit(200)), (snapshot) => 
                 setEonetEvents(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as EonetEvent[])),
-            onSnapshot(query(collection(firestore, 'ships'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
+            onSnapshot(query(collection(firestore, 'ships'), orderBy('timestamp', 'desc'), limit(1000)), (snapshot) => 
                 setShips(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Ship[])),
+            onSnapshot(query(collection(firestore, 'flights'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
+                setFlights(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Flight[])),
         ];
 
         async function fetchIssPosition() {
@@ -345,39 +348,10 @@ export default function GlobeView() {
         fetchIssPosition();
         const issInterval = setInterval(fetchIssPosition, 5000);
 
-        async function fetchFlights() {
-            const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
-            if (!apiKey) return;
-            try {
-                const url = `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_status=active`;
-                const response = await fetch(url);
-                const data = await response.json();
-                if (response.ok && data.data) {
-                     const allFlights = data.data
-                        .filter((flight: any) => flight.live && flight.live.latitude && flight.live.longitude)
-                        .map((flight: any): Flight => ({
-                          id: flight.flight.iata || `${flight.departure.iata}-${flight.arrival.iata}-${flight.airline.iata}`,
-                          latitude: flight.live.latitude,
-                          longitude: flight.live.longitude,
-                          direction: flight.live.direction,
-                          flight_iata: flight.flight.iata,
-                          airline_name: flight.airline.name,
-                          dep_iata: flight.departure.iata,
-                          arr_iata: flight.arrival.iata,
-                        }));
-                    setAviationStackFlights(allFlights);
-                }
-            } catch (error) {
-                console.error("Error fetching flight data:", error);
-            }
-        }
-
         fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
             .then(res => res.json())
             .then(setCountries)
             .catch(err => console.error("Error fetching country data:", err));
-
-        fetchFlights();
         
         return () => {
             listeners.forEach(unsubscribe => unsubscribe());
@@ -437,7 +411,6 @@ export default function GlobeView() {
 
 
     const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
-    const allFlights = useMemo(() => [...flights, ...aviationStackFlights], [flights, aviationStackFlights]);
 
 
     return (
@@ -447,7 +420,7 @@ export default function GlobeView() {
                     allIncidents={allIncidents}
                     earthquakes={earthquakes}
                     ships={ships}
-                    allFlights={allFlights}
+                    flights={flights}
                     countries={countries}
                     issPosition={issPosition}
                     hoveredCountry={hoveredCountry}
@@ -461,7 +434,7 @@ export default function GlobeView() {
                 <p>Fires/Events: {allIncidents.length}</p>
                 <p>Earthquakes: {earthquakes.length}</p>
                 <p>Active Ships: {ships.length}</p>
-                <p>Active Flights: {allFlights.length}</p>
+                <p>Active Flights: {flights.length}</p>
                 {issPosition && <p className="text-yellow-400 mt-2">ISS Altitude: {issPosition.altitude.toFixed(0)} km</p>}
             </div>
              <div className="absolute bottom-4 left-4 p-2 rounded-lg bg-black/50 text-white font-mono text-xs">

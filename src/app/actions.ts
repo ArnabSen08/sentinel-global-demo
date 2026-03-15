@@ -2,7 +2,7 @@
 
 import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import type { Incident, Earthquake, EonetEvent, Ship } from "@/types";
+import type { Incident, Earthquake, EonetEvent, Ship, Flight, StockUpdate } from "@/types";
 
 /**
  * Generates 10 random mock incidents across the globe and saves them to Firestore.
@@ -47,9 +47,6 @@ export async function generateMockData() {
 /**
  * Fetches real-time fire and thermal anomaly data from NASA's FIRMS API for the entire world
  * and stores it in the 'incidents' Firestore collection.
- * 
- * NOTE: To run this automatically every 30 minutes in production, you would set up
- * a scheduler (e.g., Google Cloud Scheduler) to call an API route that triggers this action.
  */
 export async function fetchAndStoreFirmsData() {
   if (!isFirebaseAdminInitialized) {
@@ -59,13 +56,12 @@ export async function fetchAndStoreFirmsData() {
   }
 
   const apiKey = process.env.FIRMS_MAP_KEY;
-  if (!apiKey) {
+  if (!apiKey || apiKey === 'REPLACE_WITH_YOUR_FIRMS_MAP_KEY') {
     const message = "NASA FIRMS API key (FIRMS_MAP_KEY) is not configured in environment variables.";
-    console.error(message);
+    console.warn(message);
     return { success: false, message };
   }
 
-  // API fetches data for the entire world for the last 24 hours.
   const url = `https://firms.modaps.eosdis.nasa.gov/api/v1/nrt/world/csv/${apiKey}/VIIRS_SNPP_NRT/1`;
 
   try {
@@ -82,7 +78,6 @@ export async function fetchAndStoreFirmsData() {
     }
     
     const headers = lines[0].split(",");
-    // Remove header line
     lines.shift(); 
 
     const batch = adminDb.batch();
@@ -100,18 +95,17 @@ export async function fetchAndStoreFirmsData() {
         const latitude = parseFloat(data.latitude);
         const longitude = parseFloat(data.longitude);
         const acq_date = data.acq_date;
-        const acq_time_str = data.acq_time ? data.acq_time.padStart(4, '0') : ''; // Ensure HHMM format
+        const acq_time_str = data.acq_time ? data.acq_time.padStart(4, '0') : '';
 
         if (isNaN(latitude) || isNaN(longitude) || !acq_date || !acq_time_str) continue;
         
         const year = parseInt(acq_date.substring(0, 4));
-        const month = parseInt(acq_date.substring(5, 7)) - 1; // JS months are 0-indexed
+        const month = parseInt(acq_date.substring(5, 7)) - 1;
         const day = parseInt(acq_date.substring(8, 10));
         const hour = parseInt(acq_time_str.substring(0, 2));
         const minute = parseInt(acq_time_str.substring(2, 4));
         const timestamp = Timestamp.fromDate(new Date(Date.UTC(year, month, day, hour, minute)));
 
-        // Create a unique ID to prevent duplicates
         const docId = `${acq_date}-${acq_time_str}-${latitude.toFixed(4)}-${longitude.toFixed(4)}`;
 
         const newIncident: Omit<Incident, 'id'> = {
@@ -179,7 +173,6 @@ export async function fetchAndStoreUsgsData() {
         place: properties.place,
       };
 
-      // Use USGS event id as the document ID to prevent duplicates
       const docId = feature.id;
       const docRef = earthquakesCollection.doc(docId);
       batch.set(docRef, newEarthquake, { merge: true });
@@ -210,7 +203,6 @@ export async function fetchAndStoreEonetData() {
         return { success: false, message };
     }
 
-    // Fetches all open events
     const url = 'https://eonet.gsfc.nasa.gov/api/v3/events';
 
     try {
@@ -225,7 +217,6 @@ export async function fetchAndStoreEonetData() {
         let newEventsCount = 0;
 
         for (const event of data.events) {
-            // EONET events can have multiple geometries, we'll take the first one
             const geometry = event.geometry[0];
             if (!geometry || geometry.type !== 'Point') continue;
 
@@ -269,13 +260,12 @@ export async function fetchAndStoreShippingData() {
     }
 
     const apiKey = process.env.AISTREAM_API_KEY;
-    if (!apiKey) {
+    if (!apiKey || apiKey === 'REPLACE_WITH_YOUR_AISTREAM_API_KEY') {
         const message = "Airstream API key (AISTREAM_API_KEY) is not configured in environment variables. Shipping data will not be available.";
         console.warn(message);
         return { success: false, message };
     }
 
-    // NOTE: This is a presumed endpoint for an API like Spire Maritime.
     const url = 'https://api.aistream.io/v2/vessels'; 
 
     try {
@@ -284,14 +274,11 @@ export async function fetchAndStoreShippingData() {
         });
 
         if (!response.ok) {
-            // If the API call fails, we'll just log it and won't clear existing data.
-            // This prevents the map from going blank if the API is temporarily down.
             throw new Error(`Airstream API request failed with status: ${response.status}`);
         }
 
         const data = await response.json();
         
-        // NOTE: This is a presumed response structure, similar to Spire's Maritime API.
         if (!data || !Array.isArray(data.data)) {
              return { success: true, message: "No new shipping data found or invalid API response format." };
         }
@@ -300,12 +287,10 @@ export async function fetchAndStoreShippingData() {
         const shipsCollection = adminDb.collection("ships");
         let newShipsCount = 0;
 
-        // Clear out old ship data to only show the latest positions.
-        const snapshot = await shipsCollection.limit(1000).get(); // A batch can handle up to 500 writes. We will overwrite.
+        const snapshot = await shipsCollection.limit(1000).get(); 
         const existingShipIds = new Set(snapshot.docs.map(d => d.id));
 
         for (const ship of data.data) {
-            // Presumed ship object structure from a maritime API like Spire's
             const { id, last_known_position } = ship;
             
             if (!id || !last_known_position || !last_known_position.geometry || !last_known_position.geometry.coordinates) continue;
@@ -319,15 +304,13 @@ export async function fetchAndStoreShippingData() {
                 heading: last_known_position.heading || last_known_position.course_over_ground || 0,
             };
 
-            // Use the ship's unique ID from the API as the document ID
             const docId = String(ship.mmsi || id);
             const docRef = shipsCollection.doc(docId);
-            batch.set(docRef, newShip); // Overwrite existing document with fresh data
+            batch.set(docRef, newShip);
             newShipsCount++;
             existingShipIds.delete(docId);
         }
         
-        // Delete any ships that are no longer in the API feed
         existingShipIds.forEach(shipId => {
             batch.delete(shipsCollection.doc(shipId));
         });
@@ -340,5 +323,135 @@ export async function fetchAndStoreShippingData() {
         console.error("Error fetching or storing Airstream shipping data:", error);
         const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
         return { success: false, message: `An error occurred while fetching shipping data: ${errorMessage}` };
+    }
+}
+
+/**
+ * Fetches real-time flight data from AviationStack and stores it in Firestore.
+ */
+export async function fetchAndStoreFlightsData() {
+    if (!isFirebaseAdminInitialized) {
+        const message = "Firebase Admin is not initialized. Cannot fetch flight data.";
+        console.error(message);
+        return { success: false, message };
+    }
+
+    const apiKey = process.env.AVIATIONSTACK_API_KEY;
+    if (!apiKey || apiKey === 'REPLACE_WITH_YOUR_AVIATIONSTACK_API_KEY') {
+        const message = "AviationStack API key is not configured. Flight data will be unavailable.";
+        console.warn(message);
+        return { success: false, message };
+    }
+
+    // Free plan requires HTTP, not HTTPS.
+    const url = `http://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_status=active`;
+    
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (!response.ok || data.error) {
+            throw new Error(data?.error?.message || `AviationStack API request failed with status: ${response.status}`);
+        }
+
+        const flightsCollection = adminDb.collection("flights");
+        const batch = adminDb.batch();
+        let newFlightsCount = 0;
+
+        const allFlights = data.data
+            .filter((flight: any) => flight.live && flight.live.latitude && flight.live.longitude)
+            .map((flight: any): Omit<Flight, 'id'> => ({
+                latitude: flight.live.latitude,
+                longitude: flight.live.longitude,
+                direction: flight.live.direction,
+                timestamp: Timestamp.fromMillis(flight.live.updated_unix * 1000),
+                flight_iata: flight.flight.iata,
+                airline_name: flight.airline.name,
+                dep_iata: flight.departure.iata,
+                arr_iata: flight.arrival.iata,
+            }));
+        
+        for (const flight of allFlights) {
+            // Use flight IATA as a unique ID, falling back to a composite key.
+            const docId = flight.flight_iata || `${flight.dep_iata}-${flight.arr_iata}-${flight.airline_name}`;
+            const docRef = flightsCollection.doc(docId);
+            batch.set(docRef, flight, { merge: true });
+            newFlightsCount++;
+        }
+
+        if (newFlightsCount > 0) {
+            await batch.commit();
+        }
+
+        return { success: true, message: `Successfully processed and stored ${newFlightsCount} active flights.` };
+
+    } catch (error) {
+        console.error("Error fetching or storing flight data:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `An error occurred while fetching flight data: ${errorMessage}` };
+    }
+}
+
+
+/**
+ * Fetches stock market data and stores it in Firestore.
+ */
+export async function fetchAndStoreStockData() {
+    if (!isFirebaseAdminInitialized) {
+        const message = "Firebase Admin is not initialized. Cannot fetch stock data.";
+        console.error(message);
+        return { success: false, message };
+    }
+
+    const apiKey = process.env.FINANCIAL_API_KEY;
+    if (!apiKey || apiKey === 'REPLACE_WITH_YOUR_FINANCIAL_API_KEY') {
+        const message = "Financial API key is not configured. Stock data will be unavailable.";
+        console.warn(message);
+        return { success: false, message };
+    }
+
+    // Example: Fetching major indices from Financial Modeling Prep
+    const tickers = ['^GSPC', '^IXIC', '^FTSE', '^N225', '^GDAXI'];
+    const url = `https://financialmodelingprep.com/api/v3/quote/${tickers.join(',')}?apikey=${apiKey}`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Financial API request failed with status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+            return { success: true, message: "No new stock data found or invalid API response format." };
+        }
+
+        const batch = adminDb.batch();
+        const stocksCollection = adminDb.collection("stocks");
+        let newStocksCount = 0;
+
+        for (const stock of data) {
+            if (!stock.symbol || stock.price === undefined) continue;
+            
+            const newStock: Omit<StockUpdate, 'id'> = {
+                price: stock.price,
+                change: stock.changesPercentage,
+                timestamp: Timestamp.now(),
+            };
+
+            const docRef = stocksCollection.doc(stock.symbol);
+            batch.set(docRef, newStock, { merge: true });
+            newStocksCount++;
+        }
+        
+        if (newStocksCount > 0) {
+            await batch.commit();
+        }
+
+        return { success: true, message: `Successfully processed and stored ${newStocksCount} stock updates.` };
+
+    } catch (error) {
+        console.error("Error fetching or storing stock data:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `An error occurred while fetching stock data: ${errorMessage}` };
     }
 }

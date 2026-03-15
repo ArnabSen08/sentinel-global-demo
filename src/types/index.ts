@@ -15,6 +15,7 @@ export interface Flight {
     latitude: number;
     longitude: number;
     direction: number;
+    timestamp: Timestamp;
     flight_iata: string | null;
     airline_name: string;
     dep_iata: string;
@@ -54,4 +55,11 @@ export interface IssPosition {
   longitude: number;
   altitude: number;
   velocity: number;
+}
+
+export interface StockUpdate {
+    id: string; // Ticker symbol
+    price: number;
+    change: number;
+    timestamp: Timestamp;
 }

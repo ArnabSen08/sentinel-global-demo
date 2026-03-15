@@ -1,4 +1,11 @@
-import { fetchAndStoreFirmsData, fetchAndStoreUsgsData, fetchAndStoreEonetData, fetchAndStoreShippingData } from '@/app/actions';
+import { 
+    fetchAndStoreFirmsData, 
+    fetchAndStoreUsgsData, 
+    fetchAndStoreEonetData, 
+    fetchAndStoreShippingData,
+    fetchAndStoreFlightsData,
+    fetchAndStoreStockData
+} from '@/app/actions';
 import { NextResponse } from 'next/server';
 
 // This route can be called by a cron job scheduler to periodically fetch data.
@@ -6,21 +13,31 @@ export async function GET(req: Request) {
   // In a production environment, you would want to secure this endpoint.
   try {
     // Run all data fetch actions in parallel
-    const [firmsResult, usgsResult, eonetResult, shippingResult] = await Promise.all([
+    const [
+        firmsResult, 
+        usgsResult, 
+        eonetResult, 
+        shippingResult,
+        flightsResult,
+        stocksResult
+    ] = await Promise.all([
       fetchAndStoreFirmsData(),
       fetchAndStoreUsgsData(),
       fetchAndStoreEonetData(),
-      fetchAndStoreShippingData() // Add shipping data fetch
+      fetchAndStoreShippingData(),
+      fetchAndStoreFlightsData(),
+      fetchAndStoreStockData()
     ]);
 
     const results = {
       firms: firmsResult,
       usgs: usgsResult,
       eonet: eonetResult,
-      shipping: shippingResult
+      shipping: shippingResult,
+      flights: flightsResult,
+      stocks: stocksResult
     };
     
-    // Check if any of them failed
     const hasError = Object.values(results).some(r => !r.success);
 
     if (hasError) {

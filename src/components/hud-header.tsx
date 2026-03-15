@@ -4,16 +4,14 @@ import type { Incident } from '@/types';
 import { Clock } from './clock';
 import { Ticker } from './ticker';
 import { Button } from './ui/button';
-import { RefreshCw, Globe } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import Link from 'next/link';
 
 interface HudHeaderProps {
   incidents: Incident[];
-  onRefreshFlights: () => void;
-  isFetchingFlights: boolean;
 }
 
-export function HudHeader({ incidents, onRefreshFlights, isFetchingFlights }: HudHeaderProps) {
+export function HudHeader({ incidents }: HudHeaderProps) {
   return (
     <header className="relative z-10 flex h-16 w-full flex-shrink-0 flex-col justify-center border-b border-primary/20 bg-black/50 backdrop-blur-sm">
       <div className="flex items-center justify-between px-4">
@@ -27,10 +25,6 @@ export function HudHeader({ incidents, onRefreshFlights, isFetchingFlights }: Hu
                 3D View
              </Button>
            </Link>
-          <Button variant="outline" size="sm" onClick={onRefreshFlights} disabled={isFetchingFlights}>
-            <RefreshCw className={`mr-2 h-4 w-4 ${isFetchingFlights ? 'animate-spin' : ''}`} />
-            Refresh Flights
-          </Button>
           <Clock />
         </div>
       </div>
