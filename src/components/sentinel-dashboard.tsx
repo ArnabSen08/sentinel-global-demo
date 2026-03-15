@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate } from '@/types';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, NewsArticle } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
@@ -22,6 +22,7 @@ export default function SentinelDashboard() {
   const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
   const [ships, setShips] = useState<Ship[]>([]);
   const [weather, setWeather] = useState<WeatherUpdate[]>([]);
+  const [news, setNews] = useState<NewsArticle[]>([]);
 
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -58,6 +59,7 @@ export default function SentinelDashboard() {
     setupListener('ships', setShips);
     setupListener('flights', setFlights);
     setupListener('weather', setWeather, null);
+    setupListener('news', setNews);
     
     return () => {
       subscribers.forEach(unsub => unsub());
@@ -65,11 +67,13 @@ export default function SentinelDashboard() {
   }, [toast]);
 
   const latestTwentyIncidents = incidents.slice(0, 20);
+  const latestTwentyNews = news.slice(0, 20);
 
   return (
     <div className="h-screen w-screen flex flex-col bg-black">
       <HudHeader 
-        incidents={latestTwentyIncidents} 
+        incidents={latestTwentyIncidents}
+        news={latestTwentyNews}
       />
       <main className="flex-1 relative">
         <MapView 

@@ -73,3 +73,12 @@ export interface WeatherUpdate {
   windspeed: number;
   timestamp: Timestamp;
 }
+
+export interface NewsArticle {
+  id: string;
+  title: string;
+  link: string;
+  country: string[];
+  timestamp: Timestamp;
+  source: string;
+}

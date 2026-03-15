@@ -3,7 +3,7 @@
 
 import { adminDb, isFirebaseAdminInitialized } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
-import type { Incident, Earthquake, EonetEvent, Ship, Flight, StockUpdate, WeatherUpdate } from "@/types";
+import type { Incident, Earthquake, EonetEvent, Ship, Flight, StockUpdate, WeatherUpdate, NewsArticle } from "@/types";
 
 /**
  * Generates 10 random mock incidents across the globe and saves them to Firestore.
@@ -526,4 +526,70 @@ export async function fetchAndStoreWeatherData() {
     const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
     return { success: false, message: `An error occurred while fetching weather data: ${errorMessage}` };
   }
+}
+
+/**
+ * Fetches latest news from NewsData.io and stores it in Firestore.
+ */
+export async function fetchAndStoreNewsData() {
+    if (!isFirebaseAdminInitialized) {
+        const message = "Firebase Admin is not initialized. Cannot fetch news data.";
+        console.error(message);
+        return { success: false, message };
+    }
+
+    const apiKey = process.env.NEWSDATA_API_KEY;
+    if (!apiKey || apiKey === 'REPLACE_WITH_YOUR_NEWSDATA_API_KEY') {
+        const message = "NewsData.io API key is not configured. News data will be unavailable.";
+        console.warn(message);
+        return { success: false, message };
+    }
+
+    // Fetches latest news in English
+    const url = `https://newsdata.io/api/1/news?apikey=${apiKey}&language=en`;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(`NewsData.io API request failed with status: ${response.status} - ${errorData.results?.message}`);
+        }
+
+        const data = await response.json();
+        if (data.status !== 'success' || !Array.isArray(data.results)) {
+            return { success: true, message: "No new news found or invalid API response format." };
+        }
+
+        const batch = adminDb.batch();
+        const newsCollection = adminDb.collection("news");
+        let newArticlesCount = 0;
+
+        for (const article of data.results) {
+            if (!article.article_id || !article.pubDate) continue;
+
+            const newArticle: Omit<NewsArticle, 'id'> = {
+                title: article.title,
+                link: article.link,
+                country: article.country || [],
+                timestamp: Timestamp.fromDate(new Date(article.pubDate)),
+                source: article.source_id,
+            };
+
+            const docId = article.article_id;
+            const docRef = newsCollection.doc(docId);
+            batch.set(docRef, newArticle, { merge: true });
+            newArticlesCount++;
+        }
+
+        if (newArticlesCount > 0) {
+            await batch.commit();
+        }
+
+        return { success: true, message: `Successfully processed and stored ${newArticlesCount} news articles.` };
+
+    } catch (error) {
+        console.error("Error fetching or storing news data:", error);
+        const errorMessage = error instanceof Error ? error.message : "An unknown error occurred.";
+        return { success: false, message: `An error occurred while fetching news data: ${errorMessage}` };
+    }
 }
