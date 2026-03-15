@@ -29,7 +29,7 @@ export default function SentinelDashboard() {
 
   const fetchFlights = useCallback(async () => {
     setIsFetchingFlights(true);
-    const apiKey = "450dfe1f1f8d989c20d5fe44ce5c504f";
+    const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
     if (!apiKey) {
       console.error("Aviationstack API key is missing.");
       toast({

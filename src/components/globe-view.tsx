@@ -227,7 +227,7 @@ export default function GlobeView() {
         // We use a separate state for flights from aviationstack to avoid storing them in firestore
         // and just fetch them on client load.
         async function fetchFlights() {
-            const apiKey = "450dfe1f1f8d989c20d5fe44ce5c504f";
+            const apiKey = process.env.NEXT_PUBLIC_AVIATIONSTACK_API_KEY;
             if (!apiKey) return;
             try {
                 const url = `https://api.aviationstack.com/v1/flights?access_key=${apiKey}&flight_status=active`;
