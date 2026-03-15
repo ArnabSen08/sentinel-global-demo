@@ -2,7 +2,7 @@
 "use client";
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, Stars, useTexture } from '@react-three/drei';
+import { OrbitControls, Stars } from '@react-three/drei';
 import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, LineBasicMaterial, BufferGeometry, BackSide, AdditiveBlending } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
@@ -10,6 +10,9 @@ import { firestore } from '@/lib/firebase-client';
 import type { Incident, Earthquake, EonetEvent, Ship, Flight, IssPosition, WeatherUpdate } from '@/types';
 import * as turf from '@turf/turf';
 import { useToast } from "@/hooks/use-toast";
+import Link from 'next/link';
+import { Button } from './ui/button';
+import { Map } from 'lucide-react';
 
 // Helper function to convert lat/lon to a 3D vector
 const latLonToVector3 = (lat: number, lon: number, radius: number) => {
@@ -78,7 +81,7 @@ function Countries({ data, hoveredCountry }: { data: any; hoveredCountry: string
         return { lines: allLines, hoveredLines: allHoveredLines };
     }, [data, hoveredCountry]);
 
-    const material = useMemo(() => new LineBasicMaterial({ color: '#555', toneMapped: false }), []);
+    const material = useMemo(() => new LineBasicMaterial({ color: '#888', toneMapped: false }), []);
     const hoveredMaterial = useMemo(() => new LineBasicMaterial({ color: 'hsl(var(--primary))', toneMapped: false }), []);
 
     return (
@@ -432,6 +435,14 @@ export default function GlobeView() {
                     onClick={handleClick}
                 />
             </Canvas>
+            <div className="absolute top-4 left-4 z-10">
+                <Link href="/" passHref>
+                    <Button variant="outline">
+                        <Map className="mr-2 h-4 w-4" />
+                        2D Map View
+                    </Button>
+                </Link>
+            </div>
             <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
                 <h3 className="font-bold text-primary mb-2">Global Stats</h3>
                 <p>Fires/Events: {allIncidents.length}</p>

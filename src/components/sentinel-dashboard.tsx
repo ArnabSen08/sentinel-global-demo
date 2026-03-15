@@ -9,6 +9,10 @@ import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, New
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
+import { SidebarProvider, Sidebar, SidebarTrigger } from '@/components/ui/sidebar';
+import { DataSidebar } from './data-sidebar';
+import { PanelRight } from 'lucide-react';
+import { Button } from './ui/button';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
@@ -70,21 +74,40 @@ export default function SentinelDashboard() {
   const latestTwentyNews = news.slice(0, 20);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-black">
-      <HudHeader 
-        incidents={latestTwentyIncidents}
-        news={latestTwentyNews}
-      />
-      <main className="flex-1 relative">
-        <MapView 
-            incidents={incidents} 
-            flights={flights}
-            earthquakes={earthquakes}
-            eonetEvents={eonetEvents}
-            ships={ships}
-            weather={weather}
+    <SidebarProvider>
+      <div className="h-screen w-screen flex flex-col bg-black">
+        <HudHeader 
+          incidents={latestTwentyIncidents}
+          news={latestTwentyNews}
         />
-      </main>
-    </div>
+        <main className="flex-1 relative">
+          <MapView 
+              incidents={incidents} 
+              flights={flights}
+              earthquakes={earthquakes}
+              eonetEvents={eonetEvents}
+              ships={ships}
+              weather={weather}
+          />
+           <div className="absolute top-4 right-16 z-10">
+                <SidebarTrigger asChild>
+                    <Button variant="outline" size="sm">
+                        <PanelRight className="mr-2 h-4 w-4" />
+                        Data Feeds
+                    </Button>
+                </SidebarTrigger>
+            </div>
+        </main>
+      </div>
+       <Sidebar side="right" className="w-[500px] border-l-primary/20 bg-black/70 backdrop-blur-sm">
+            <DataSidebar 
+                incidents={incidents}
+                earthquakes={earthquakes}
+                news={news}
+                ships={ships}
+                flights={flights}
+            />
+        </Sidebar>
+    </SidebarProvider>
   );
 }
