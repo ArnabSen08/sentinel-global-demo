@@ -32,7 +32,6 @@ export default function SentinelDashboard() {
   const [news, setNews] = useState<NewsArticle[]>([]);
   const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
   const [countries, setCountries] = useState({ features: [] });
-  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
 
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -109,13 +108,11 @@ export default function SentinelDashboard() {
       <HudHeader 
         incidents={latestTwentyIncidents}
         news={latestTwentyNews}
-        viewMode={viewMode}
-        toggleViewMode={() => setViewMode(v => v === '2d' ? '3d' : '2d')}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-[3] relative">
-            {viewMode === '2d' ? (
-              <MapView 
+        <div className="flex-[3] flex relative">
+           <div className="flex-1 relative border-r border-primary/20">
+             <MapView 
                   incidents={incidents} 
                   flights={flights}
                   earthquakes={earthquakes}
@@ -123,8 +120,9 @@ export default function SentinelDashboard() {
                   ships={ships}
                   weather={weather}
               />
-            ) : (
-              <GlobeView
+           </div>
+           <div className="flex-1 relative">
+             <GlobeView
                   allIncidents={allIncidents}
                   earthquakes={earthquakes}
                   ships={ships}
@@ -133,7 +131,7 @@ export default function SentinelDashboard() {
                   issPosition={issPosition}
                   weather={weather}
               />
-            )}
+           </div>
         </div>
         <div className="flex-[2] border-t border-primary/20 bg-black/70 backdrop-blur-sm overflow-hidden">
            <DataSidebar 
