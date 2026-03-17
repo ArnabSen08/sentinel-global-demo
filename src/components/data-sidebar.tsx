@@ -19,6 +19,8 @@ import type { Incident, Earthquake, NewsArticle, Ship, Flight } from "@/types";
 import { formatDistanceToNow } from 'date-fns';
 import { SidebarHeader, SidebarSeparator } from "./ui/sidebar";
 import { cn } from "@/lib/utils";
+import { AiAnalystPanel } from "./ai-analyst-panel";
+import { Bot } from 'lucide-react';
 
 interface DataSidebarProps {
   incidents: Incident[];
@@ -30,7 +32,7 @@ interface DataSidebarProps {
 
 function DataTable({ children, className }: { children: React.ReactNode, className?: string }) {
     return (
-        <ScrollArea className={cn("h-[calc(100vh-10rem)]", className)}>
+        <ScrollArea className={cn("h-[calc(100vh-12rem)]", className)}>
             <Table>
                 {children}
             </Table>
@@ -42,19 +44,25 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
   return (
     <div className="h-full w-full flex flex-col">
         <SidebarHeader className="p-4">
-             <h2 className="text-lg font-semibold text-primary">Live Data Feeds</h2>
+             <h2 className="text-lg font-semibold text-primary">Live Data & AI Analyst</h2>
              <p className="text-xs text-muted-foreground">Real-time event streams from global sources.</p>
         </SidebarHeader>
         <SidebarSeparator />
-        <Tabs defaultValue="incidents" className="flex-1 p-4 flex flex-col">
-            <TabsList className="grid w-full grid-cols-5">
-                <TabsTrigger value="incidents">Fires</TabsTrigger>
-                <TabsTrigger value="earthquakes">Quakes</TabsTrigger>
-                <TabsTrigger value="news">News</TabsTrigger>
-                <TabsTrigger value="ships">Ships</TabsTrigger>
-                <TabsTrigger value="flights">Flights</TabsTrigger>
-            </TabsList>
-            <TabsContent value="incidents" className="flex-1 mt-4">
+        <Tabs defaultValue="ai" className="flex-1 flex flex-col overflow-hidden">
+            <div className="px-4">
+                <TabsList className="grid w-full grid-cols-6">
+                    <TabsTrigger value="ai"><Bot className="h-4 w-4" /></TabsTrigger>
+                    <TabsTrigger value="incidents">Fires</TabsTrigger>
+                    <TabsTrigger value="earthquakes">Quakes</TabsTrigger>
+                    <TabsTrigger value="news">News</TabsTrigger>
+                    <TabsTrigger value="ships">Ships</TabsTrigger>
+                    <TabsTrigger value="flights">Flights</TabsTrigger>
+                </TabsList>
+            </div>
+            <TabsContent value="ai" className="flex-1 mt-2 data-[state=inactive]:hidden flex flex-col">
+                <AiAnalystPanel />
+            </TabsContent>
+            <TabsContent value="incidents" className="flex-1 mt-4 p-4 pt-0">
                 <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -74,7 +82,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="earthquakes" className="flex-1 mt-4">
+            <TabsContent value="earthquakes" className="flex-1 mt-4 p-4 pt-0">
                  <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -94,7 +102,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="news" className="flex-1 mt-4">
+            <TabsContent value="news" className="flex-1 mt-4 p-4 pt-0">
                 <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -116,7 +124,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="ships" className="flex-1 mt-4">
+            <TabsContent value="ships" className="flex-1 mt-4 p-4 pt-0">
                  <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -134,7 +142,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="flights" className="flex-1 mt-4">
+            <TabsContent value="flights" className="flex-1 mt-4 p-4 pt-0">
                  <DataTable>
                     <TableHeader>
                         <TableRow>
