@@ -77,8 +77,8 @@ export default function SentinelDashboard() {
         incidents={latestTwentyIncidents}
         news={latestTwentyNews}
       />
-      <main className="flex-1 flex flex-row overflow-hidden">
-        <div className="w-2/3 h-full relative">
+      <main className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex-[3] relative">
             <MapView 
                 incidents={incidents} 
                 flights={flights}
@@ -88,7 +88,7 @@ export default function SentinelDashboard() {
                 weather={weather}
             />
         </div>
-        <div className="w-1/3 h-full border-l border-primary/20 bg-black/70 backdrop-blur-sm">
+        <div className="flex-[2] border-t border-primary/20 bg-black/70 backdrop-blur-sm overflow-hidden">
            <DataSidebar 
               incidents={incidents}
               earthquakes={earthquakes}
