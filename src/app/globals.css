@@ -147,6 +147,26 @@
   }
 }
 
+@keyframes pulse-map {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 var(--pulse-color-start);
+  }
+  70% {
+    transform: scale(1.2);
+    box-shadow: 0 0 0 12px var(--pulse-color-end);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 var(--pulse-color-end);
+  }
+}
+
+.animate-pulse-map {
+  border-radius: 50%;
+  animation: pulse-map 2s infinite;
+}
+
 .animate-ticker-item {
   display: inline-block;
   white-space: nowrap;

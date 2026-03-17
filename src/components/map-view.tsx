@@ -11,12 +11,6 @@ import ReactDOMServer from 'react-dom/server';
 
 const planeSVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="yellow" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17.8 19.2 16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>`;
 
-const earthquakeSVG = (magnitude: number) => {
-    const radius = 2 + magnitude * 1.5;
-    const color = magnitude > 5 ? 'hsl(var(--destructive))' : magnitude > 3 ? 'hsl(var(--primary))' : 'yellow';
-    return `<svg width="${radius*2}" height="${radius*2}" viewBox="0 0 ${radius*2} ${radius*2}" xmlns="http://www.w3.org/2000/svg"><circle cx="${radius}" cy="${radius}" r="${radius-1}" fill="${color}" fill-opacity="0.5" stroke="${color}" stroke-width="1"/></svg>`;
-}
-
 const eonetIcon = (category: string) => {
     let icon;
     switch (category.toLowerCase()) {
@@ -181,13 +175,27 @@ export default function MapView({
                       }}
                       pointToLayer={(feature, latlng) => {
                         const quake = feature.properties as Earthquake;
-                        const icon = L.divIcon({
-                            html: earthquakeSVG(quake.magnitude),
-                            className: 'earthquake-icon',
-                            iconSize: [2 + quake.magnitude * 3, 2 + quake.magnitude * 3],
-                            iconAnchor: [1 + quake.magnitude * 1.5, 1 + quake.magnitude * 1.5],
+                        const radius = 4 + quake.magnitude;
+                        const color = quake.magnitude > 5 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))';
+                        
+                        const html = `
+                          <div style="
+                            --pulse-color-start: ${color.replace('hsl(','hsla(').replace(')',' / 0.7)')}; 
+                            --pulse-color-end: ${color.replace('hsl(','hsla(').replace(')',' / 0)')}; 
+                            width: ${radius}px; 
+                            height: ${radius}px; 
+                            background-color: ${color};" 
+                            class="animate-pulse-map">
+                          </div>`;
+
+                        return L.marker(latlng, {
+                          icon: L.divIcon({
+                            html,
+                            className: 'earthquake-pulse-icon',
+                            iconSize: [radius, radius],
+                            iconAnchor: [radius / 2, radius / 2],
+                          })
                         });
-                        return L.marker(latlng, { icon });
                       }}
                       onEachFeature={(feature, layer) => {
                         const quake = feature.properties as Earthquake;
