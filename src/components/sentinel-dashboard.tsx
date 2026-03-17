@@ -9,25 +9,12 @@ import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, New
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
-import { SidebarProvider, Sidebar, useSidebar } from '@/components/ui/sidebar';
 import { DataSidebar } from './data-sidebar';
-import { PanelRight } from 'lucide-react';
-import { Button } from './ui/button';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
   ssr: false,
   loading: () => <Skeleton className="absolute inset-0 z-0 bg-background" />,
 });
-
-const DataFeedsTrigger = () => {
-    const { toggleSidebar } = useSidebar();
-    return (
-        <Button variant="outline" size="sm" onClick={toggleSidebar}>
-            <PanelRight className="mr-2 h-4 w-4" />
-            Data Feeds
-        </Button>
-    );
-};
 
 
 export default function SentinelDashboard() {
@@ -85,35 +72,32 @@ export default function SentinelDashboard() {
   const latestTwentyNews = news.slice(0, 20);
 
   return (
-    <SidebarProvider>
-      <div className="h-screen w-screen flex flex-col bg-black">
-        <HudHeader 
-          incidents={latestTwentyIncidents}
-          news={latestTwentyNews}
-        />
-        <main className="flex-1 relative">
-          <MapView 
-              incidents={incidents} 
-              flights={flights}
-              earthquakes={earthquakes}
-              eonetEvents={eonetEvents}
-              ships={ships}
-              weather={weather}
-          />
-           <div className="absolute top-4 right-16 z-10">
-                <DataFeedsTrigger />
-            </div>
-        </main>
-      </div>
-       <Sidebar side="right" className="w-[500px] border-l-primary/20 bg-black/70 backdrop-blur-sm">
-            <DataSidebar 
-                incidents={incidents}
-                earthquakes={earthquakes}
-                news={news}
-                ships={ships}
+    <div className="h-screen w-screen flex flex-col bg-black">
+      <HudHeader 
+        incidents={latestTwentyIncidents}
+        news={latestTwentyNews}
+      />
+      <main className="flex-1 flex flex-row overflow-hidden">
+        <div className="w-2/3 h-full relative">
+            <MapView 
+                incidents={incidents} 
                 flights={flights}
+                earthquakes={earthquakes}
+                eonetEvents={eonetEvents}
+                ships={ships}
+                weather={weather}
             />
-        </Sidebar>
-    </SidebarProvider>
+        </div>
+        <div className="w-1/3 h-full border-l border-primary/20 bg-black/70 backdrop-blur-sm">
+           <DataSidebar 
+              incidents={incidents}
+              earthquakes={earthquakes}
+              news={news}
+              ships={ships}
+              flights={flights}
+          />
+        </div>
+      </main>
+    </div>
   );
 }

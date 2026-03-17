@@ -81,9 +81,12 @@ export default function MapView({
         <MapContainer
             center={position}
             zoom={zoom}
-            scrollWheelZoom={true}
             style={{ height: '100%', width: '100%', backgroundColor: 'hsl(var(--background))' }}
             className="absolute inset-0 z-0"
+            scrollWheelZoom={false}
+            dragging={false}
+            zoomControl={false}
+            doubleClickZoom={false}
         >
             <TileLayer
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'

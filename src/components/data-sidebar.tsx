@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import {
   Table,
@@ -32,7 +32,7 @@ interface DataSidebarProps {
 
 function DataTable({ children, className }: { children: React.ReactNode, className?: string }) {
     return (
-        <ScrollArea className={cn("h-[calc(100vh-12rem)]", className)}>
+        <ScrollArea className={cn("h-full", className)}>
             <Table>
                 {children}
             </Table>
@@ -59,10 +59,10 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     <TabsTrigger value="flights">Flights</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="ai" className="flex-1 mt-2 data-[state=inactive]:hidden flex flex-col">
+            <TabsContent value="ai" className="flex-1 mt-2 data-[state=inactive]:hidden flex flex-col overflow-hidden">
                 <AiAnalystPanel />
             </TabsContent>
-            <TabsContent value="incidents" className="flex-1 mt-4 p-4 pt-0">
+            <TabsContent value="incidents" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">
                 <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -82,7 +82,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="earthquakes" className="flex-1 mt-4 p-4 pt-0">
+            <TabsContent value="earthquakes" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">
                  <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -102,7 +102,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="news" className="flex-1 mt-4 p-4 pt-0">
+            <TabsContent value="news" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">
                 <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -124,7 +124,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="ships" className="flex-1 mt-4 p-4 pt-0">
+            <TabsContent value="ships" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">
                  <DataTable>
                     <TableHeader>
                         <TableRow>
@@ -142,7 +142,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     </TableBody>
                 </DataTable>
             </TabsContent>
-            <TabsContent value="flights" className="flex-1 mt-4 p-4 pt-0">
+            <TabsContent value="flights" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">
                  <DataTable>
                     <TableHeader>
                         <TableRow>
