@@ -60,6 +60,7 @@ export interface IssPosition {
 
 export interface StockUpdate {
     id: string; // Ticker symbol
+    name: string;
     price: number;
     change: number;
     timestamp: Timestamp;

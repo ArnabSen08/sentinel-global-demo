@@ -69,6 +69,20 @@ const getFlightsTool = ai.defineTool(
     async (input) => await firestoreTools.getFlights(input.limit)
 );
 
+// Tool to get stock market data
+const getStocksTool = ai.defineTool(
+    {
+        name: 'getStocks',
+        description: 'Get the most recent stock market index and price updates.',
+        inputSchema: z.object({
+            limit: z.number().optional().default(10).describe('The number of stock updates to return.'),
+        }),
+        outputSchema: z.any(),
+    },
+    async (input) => await firestoreTools.getStocks(input.limit)
+);
+
+
 // Define the main analyst flow
 const analystFlow = ai.defineFlow(
     {
@@ -80,13 +94,13 @@ const analystFlow = ai.defineFlow(
         const llmResponse = await ai.generate({
             prompt: prompt,
             model: 'googleai/gemini-2.5-flash',
-            tools: [getFiresTool, getEarthquakesTool, getNewsTool, getShipsTool, getFlightsTool],
+            tools: [getFiresTool, getEarthquakesTool, getNewsTool, getShipsTool, getFlightsTool, getStocksTool],
             config: {
                 // Lower temperature for more factual, less creative responses
                 temperature: 0.2,
             },
             system: `You are an expert AI analyst for the Sentinel Global dashboard, a real-time mission control center.
-Your role is to answer questions by using the provided tools to query the live data streams.
+Your role is to answer questions by using the provided tools to query the live data streams for fires, earthquakes, news, ship positions, flights, and stock market information.
 Be concise and factual in your responses.
 Provide clear, data-driven answers.
 If the user asks a general question like "what's happening?", use the tools to get a summary of recent events across different categories (fires, quakes, news) and provide an executive briefing.
@@ -108,11 +122,11 @@ const executiveBriefingFlow = ai.defineFlow(
         outputSchema: z.string().describe('The executive briefing.'),
     },
     async () => {
-        const prompt = "Provide a concise executive briefing of the most significant global events in the last few hours. Summarize major fires, earthquakes (over 4.5 magnitude), and top 3 breaking news stories.";
+        const prompt = "Provide a concise executive briefing of the most significant global events in the last few hours. Summarize major fires, earthquakes (over 4.5 magnitude), top 3 breaking news stories, and the performance of major stock indices.";
          const llmResponse = await ai.generate({
             prompt: prompt,
             model: 'googleai/gemini-2.5-flash',
-            tools: [getFiresTool, getEarthquakesTool, getNewsTool],
+            tools: [getFiresTool, getEarthquakesTool, getNewsTool, getStocksTool],
              config: {
                 temperature: 0.3,
             },
@@ -120,7 +134,7 @@ const executiveBriefingFlow = ai.defineFlow(
 Your role is to generate an "Executive Briefing" by using the provided tools to query live data streams.
 Synthesize the information into a concise, high-level summary suitable for a quick overview.
 Focus on the most significant events.
-Format your response using markdown with clear headings for each section (e.g., ## Seismic Activity).
+Format your response using markdown with clear headings for each section (e.g., ## Seismic Activity, ## Market Snapshot).
 Current time is ${new Date().toISOString()}.`
         });
         

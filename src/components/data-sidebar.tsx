@@ -15,7 +15,7 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { Incident, Earthquake, NewsArticle, Ship, Flight } from "@/types";
+import type { Incident, Earthquake, NewsArticle, Ship, Flight, StockUpdate } from "@/types";
 import { formatDistanceToNow } from 'date-fns';
 import { SidebarHeader, SidebarSeparator } from "./ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -28,6 +28,7 @@ interface DataSidebarProps {
   news: NewsArticle[];
   ships: Ship[];
   flights: Flight[];
+  stocks: StockUpdate[];
 }
 
 function DataTable({ children, className }: { children: React.ReactNode, className?: string }) {
@@ -40,7 +41,7 @@ function DataTable({ children, className }: { children: React.ReactNode, classNa
     )
 }
 
-export function DataSidebar({ incidents, earthquakes, news, ships, flights }: DataSidebarProps) {
+export function DataSidebar({ incidents, earthquakes, news, ships, flights, stocks }: DataSidebarProps) {
   return (
     <div className="h-full w-full flex flex-col">
         <SidebarHeader className="p-4">
@@ -50,13 +51,14 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
         <SidebarSeparator />
         <Tabs defaultValue="ai" className="flex-1 flex flex-col overflow-hidden">
             <div className="px-4">
-                <TabsList className="grid w-full grid-cols-6">
+                <TabsList className="grid w-full grid-cols-7">
                     <TabsTrigger value="ai"><Bot className="h-4 w-4" /></TabsTrigger>
                     <TabsTrigger value="incidents">Fires</TabsTrigger>
                     <TabsTrigger value="earthquakes">Quakes</TabsTrigger>
                     <TabsTrigger value="news">News</TabsTrigger>
                     <TabsTrigger value="ships">Ships</TabsTrigger>
                     <TabsTrigger value="flights">Flights</TabsTrigger>
+                    <TabsTrigger value="stocks">Stocks</TabsTrigger>
                 </TabsList>
             </div>
             <TabsContent value="ai" className="flex-1 mt-4 p-4 pt-0 data-[state=inactive]:hidden flex flex-col overflow-hidden">
@@ -157,6 +159,31 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                                 <TableCell>{item.flight_iata || 'N/A'}</TableCell>
                                 <TableCell>{item.dep_iata} &rarr; {item.arr_iata}</TableCell>
                                 <TableCell className="text-right text-xs">{formatDistanceToNow(item.timestamp.toDate())}</TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </DataTable>
+            </TabsContent>
+             <TabsContent value="stocks" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">
+                <DataTable>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Price</TableHead>
+                            <TableHead className="text-right">Change</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {stocks.map((item) => (
+                            <TableRow key={item.id}>
+                                <TableCell>{item.name}</TableCell>
+                                <TableCell>${item.price.toFixed(2)}</TableCell>
+                                <TableCell className={cn(
+                                    "text-right",
+                                    item.change >= 0 ? 'text-green-400' : 'text-red-400'
+                                )}>
+                                    {item.change.toFixed(2)}%
+                                </TableCell>
                             </TableRow>
                         ))}
                     </TableBody>

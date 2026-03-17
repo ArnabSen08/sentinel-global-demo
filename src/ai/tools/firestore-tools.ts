@@ -1,7 +1,7 @@
 'use server';
 
 import { adminDb, isFirebaseAdminInitialized } from '@/lib/firebase-admin';
-import type { Incident, Earthquake, NewsArticle, Ship, Flight } from '@/types';
+import type { Incident, Earthquake, NewsArticle, Ship, Flight, StockUpdate } from '@/types';
 import { CollectionReference, Query, Timestamp } from 'firebase-admin/firestore';
 
 // A generic query function to avoid repetition
@@ -63,4 +63,8 @@ export async function getShips(limit = 20) {
 
 export async function getFlights(limit = 20) {
     return await queryCollection<Flight>('flights', { limit });
+}
+
+export async function getStocks(limit = 10) {
+    return await queryCollection<StockUpdate>('stocks', { limit });
 }

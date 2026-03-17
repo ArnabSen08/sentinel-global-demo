@@ -395,7 +395,7 @@ export async function fetchAndStoreFlightsData() {
 
 
 /**
- * Fetches stock market data and stores it in Firestore.
+ * Fetches stock market data from Finnhub and stores it in Firestore.
  */
 export async function fetchAndStoreStockData() {
     if (!isFirebaseAdminInitialized) {
@@ -404,42 +404,51 @@ export async function fetchAndStoreStockData() {
         return { success: false, message };
     }
 
-    const apiKey = process.env.FINANCIAL_API_KEY;
-    if (!apiKey || apiKey === 'REPLACE_WITH_YOUR_FINANCIAL_API_KEY') {
-        const message = "Financial API key is not configured. Stock data will be unavailable.";
+    const apiKey = "d6smn9pr01qtlmfoioh0d6smn9pr01qtlmfoiohg";
+    if (!apiKey) {
+        const message = "Finnhub API key is not configured. Stock data will be unavailable.";
         console.warn(message);
         return { success: false, message };
     }
 
-    // Example: Fetching major indices from Financial Modeling Prep
-    const tickers = ['^GSPC', '^IXIC', '^FTSE', '^N225', '^GDAXI', '000001.SS', '^BSESN'];
-    const url = `https://financialmodelingprep.com/api/v3/quote/${tickers.join(',')}?apikey=${apiKey}`;
-
+    const indices: { [key: string]: string } = {
+        'SPY': 'S&P 500 ETF',
+        'QQQ': 'Nasdaq 100 ETF',
+        'DIA': 'Dow Jones ETF',
+        '^GDAXI': 'DAX PERFORMANCE-INDEX',
+        '^N225': 'Nikkei 225',
+    };
+    
+    const tickers = Object.keys(indices);
+    const stocksCollection = adminDb.collection("stocks");
+    let newStocksCount = 0;
+    
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Financial API request failed with status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        if (!Array.isArray(data)) {
-            return { success: true, message: "No new stock data found or invalid API response format." };
-        }
-
         const batch = adminDb.batch();
-        const stocksCollection = adminDb.collection("stocks");
-        let newStocksCount = 0;
 
-        for (const stock of data) {
-            if (!stock.symbol || stock.price === undefined) continue;
+        for (const ticker of tickers) {
+            const url = `https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`;
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                console.warn(`Finnhub API request for ${ticker} failed with status: ${response.status}`);
+                continue; // Skip to next ticker
+            }
+
+            const data = await response.json();
+            
+            if (!data || data.c === 0 || !data.pc) continue;
+
+            const change = ((data.c - data.pc) / data.pc) * 100;
             
             const newStock: Omit<StockUpdate, 'id'> = {
-                price: stock.price,
-                change: stock.changesPercentage,
-                timestamp: Timestamp.now(),
+                name: indices[ticker],
+                price: data.c,
+                change: change,
+                timestamp: Timestamp.fromMillis(data.t * 1000),
             };
 
-            const docRef = stocksCollection.doc(stock.symbol);
+            const docRef = stocksCollection.doc(ticker);
             batch.set(docRef, newStock, { merge: true });
             newStocksCount++;
         }
@@ -456,6 +465,7 @@ export async function fetchAndStoreStockData() {
         return { success: false, message: `An error occurred while fetching stock data: ${errorMessage}` };
     }
 }
+
 
 /**
  * Fetches real-time weather data from Open-Meteo for major cities

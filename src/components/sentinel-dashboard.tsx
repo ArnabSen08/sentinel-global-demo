@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, NewsArticle, IssPosition } from '@/types';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, NewsArticle, IssPosition, StockUpdate } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
@@ -30,6 +30,7 @@ export default function SentinelDashboard() {
   const [ships, setShips] = useState<Ship[]>([]);
   const [weather, setWeather] = useState<WeatherUpdate[]>([]);
   const [news, setNews] = useState<NewsArticle[]>([]);
+  const [stocks, setStocks] = useState<StockUpdate[]>([]);
   const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
   const [countries, setCountries] = useState({ features: [] });
 
@@ -69,6 +70,7 @@ export default function SentinelDashboard() {
     setupListener('flights', setFlights);
     setupListener('weather', setWeather, null);
     setupListener('news', setNews);
+    setupListener('stocks', setStocks);
 
     async function fetchIssPosition() {
         try {
@@ -110,18 +112,8 @@ export default function SentinelDashboard() {
         news={latestTwentyNews}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-[3] flex relative">
-           <div className="flex-1 relative border-r border-primary/20">
-             <MapView 
-                  incidents={incidents} 
-                  flights={flights}
-                  earthquakes={earthquakes}
-                  eonetEvents={eonetEvents}
-                  ships={ships}
-                  weather={weather}
-              />
-           </div>
-           <div className="flex-1 relative">
+        <div className="flex-[3] flex flex-col relative">
+           <div className="flex-1 relative border-b border-primary/20">
              <GlobeView
                   allIncidents={allIncidents}
                   earthquakes={earthquakes}
@@ -129,6 +121,16 @@ export default function SentinelDashboard() {
                   flights={flights}
                   countries={countries}
                   issPosition={issPosition}
+                  weather={weather}
+              />
+           </div>
+           <div className="flex-1 relative">
+             <MapView 
+                  incidents={incidents} 
+                  flights={flights}
+                  earthquakes={earthquakes}
+                  eonetEvents={eonetEvents}
+                  ships={ships}
                   weather={weather}
               />
            </div>
@@ -140,6 +142,7 @@ export default function SentinelDashboard() {
               news={news}
               ships={ships}
               flights={flights}
+              stocks={stocks}
           />
         </div>
       </main>
