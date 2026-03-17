@@ -59,7 +59,7 @@ export function DataSidebar({ incidents, earthquakes, news, ships, flights }: Da
                     <TabsTrigger value="flights">Flights</TabsTrigger>
                 </TabsList>
             </div>
-            <TabsContent value="ai" className="flex-1 mt-2 data-[state=inactive]:hidden flex flex-col overflow-hidden">
+            <TabsContent value="ai" className="flex-1 mt-4 p-4 pt-0 data-[state=inactive]:hidden flex flex-col overflow-hidden">
                 <AiAnalystPanel />
             </TabsContent>
             <TabsContent value="incidents" className="flex-1 mt-4 p-4 pt-0 overflow-hidden">

@@ -86,7 +86,7 @@ export function AiAnalystPanel() {
                 </Button>
             </div>
             <ScrollArea className="flex-1" ref={scrollAreaRef}>
-                 <div className="flex-1 space-y-4 p-4">
+                 <div className="flex-1 space-y-4">
                     {messages.map((message, index) => (
                         <div key={index} className={cn(
                             "flex items-start gap-3",
