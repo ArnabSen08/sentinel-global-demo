@@ -1,17 +1,22 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import dynamic from 'next/dynamic';
 import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
 import { firestore } from '@/lib/firebase-client';
-import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, NewsArticle } from '@/types';
+import type { Incident, Flight, Earthquake, EonetEvent, Ship, WeatherUpdate, NewsArticle, IssPosition } from '@/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { HudHeader } from './hud-header';
 import { useToast } from "@/hooks/use-toast";
 import { DataSidebar } from './data-sidebar';
 
 const MapView = dynamic(() => import('@/components/map-view'), {
+  ssr: false,
+  loading: () => <Skeleton className="absolute inset-0 z-0 bg-background" />,
+});
+
+const GlobeView = dynamic(() => import('@/components/globe-view'), {
   ssr: false,
   loading: () => <Skeleton className="absolute inset-0 z-0 bg-background" />,
 });
@@ -25,6 +30,9 @@ export default function SentinelDashboard() {
   const [ships, setShips] = useState<Ship[]>([]);
   const [weather, setWeather] = useState<WeatherUpdate[]>([]);
   const [news, setNews] = useState<NewsArticle[]>([]);
+  const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
+  const [countries, setCountries] = useState({ features: [] });
+  const [viewMode, setViewMode] = useState<'2d' | '3d'>('2d');
 
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
@@ -62,12 +70,37 @@ export default function SentinelDashboard() {
     setupListener('flights', setFlights);
     setupListener('weather', setWeather, null);
     setupListener('news', setNews);
+
+    async function fetchIssPosition() {
+        try {
+            const response = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
+            if (response.ok) {
+                const data = await response.json();
+                setIssPosition(data as IssPosition);
+            }
+        } catch (error) {
+            console.error("Error fetching ISS position:", error);
+        }
+    }
+
+    fetchIssPosition();
+    const issInterval = setInterval(fetchIssPosition, 5000);
+
+    fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+        .then(res => res.json())
+        .then(setCountries)
+        .catch(err => {
+            console.error("Error fetching country data:", err);
+            toast({ variant: 'destructive', title: 'Could not load country borders.' });
+        });
     
     return () => {
       subscribers.forEach(unsub => unsub());
+      clearInterval(issInterval);
     };
   }, [toast]);
 
+  const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
   const latestTwentyIncidents = incidents.slice(0, 20);
   const latestTwentyNews = news.slice(0, 20);
 
@@ -76,17 +109,31 @@ export default function SentinelDashboard() {
       <HudHeader 
         incidents={latestTwentyIncidents}
         news={latestTwentyNews}
+        viewMode={viewMode}
+        toggleViewMode={() => setViewMode(v => v === '2d' ? '3d' : '2d')}
       />
       <main className="flex-1 flex flex-col overflow-hidden">
         <div className="flex-[3] relative">
-            <MapView 
-                incidents={incidents} 
-                flights={flights}
-                earthquakes={earthquakes}
-                eonetEvents={eonetEvents}
-                ships={ships}
-                weather={weather}
-            />
+            {viewMode === '2d' ? (
+              <MapView 
+                  incidents={incidents} 
+                  flights={flights}
+                  earthquakes={earthquakes}
+                  eonetEvents={eonetEvents}
+                  ships={ships}
+                  weather={weather}
+              />
+            ) : (
+              <GlobeView
+                  allIncidents={allIncidents}
+                  earthquakes={earthquakes}
+                  ships={ships}
+                  flights={flights}
+                  countries={countries}
+                  issPosition={issPosition}
+                  weather={weather}
+              />
+            )}
         </div>
         <div className="flex-[2] border-t border-primary/20 bg-black/70 backdrop-blur-sm overflow-hidden">
            <DataSidebar 

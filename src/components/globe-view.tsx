@@ -5,12 +5,9 @@ import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import { Vector3, CylinderGeometry, MeshBasicMaterial, DoubleSide, SphereGeometry, LineBasicMaterial, BufferGeometry, BackSide, AdditiveBlending } from 'three';
 import { EffectComposer, Bloom } from '@react-three/postprocessing';
-import { collection, onSnapshot, query, orderBy, limit, type DocumentData } from 'firebase/firestore';
-import { firestore } from '@/lib/firebase-client';
 import type { Incident, Earthquake, EonetEvent, Ship, Flight, IssPosition, WeatherUpdate } from '@/types';
 import * as turf from '@turf/turf';
 import { useToast } from "@/hooks/use-toast";
-import Link from 'next/link';
 import { Button } from './ui/button';
 import { Map } from 'lucide-react';
 
@@ -309,62 +306,29 @@ function GlobeScene({ allIncidents, earthquakes, ships, flights, countries, issP
     );
 }
 
+interface GlobeViewProps {
+    allIncidents: (Incident | EonetEvent)[];
+    earthquakes: Earthquake[];
+    ships: Ship[];
+    flights: Flight[];
+    countries: any;
+    issPosition: IssPosition | null;
+    weather: WeatherUpdate[];
+}
 
-export default function GlobeView() {
-    const [incidents, setIncidents] = useState<Incident[]>([]);
-    const [earthquakes, setEarthquakes] = useState<Earthquake[]>([]);
-    const [eonetEvents, setEonetEvents] = useState<EonetEvent[]>([]);
-    const [ships, setShips] = useState<Ship[]>([]);
-    const [flights, setFlights] = useState<Flight[]>([]);
-    const [weather, setWeather] = useState<WeatherUpdate[]>([]);
-    const [countries, setCountries] = useState({ features: [] });
-    const [issPosition, setIssPosition] = useState<IssPosition | null>(null);
+
+export default function GlobeView({
+    allIncidents,
+    earthquakes,
+    ships,
+    flights,
+    countries,
+    issPosition,
+    weather,
+}: GlobeViewProps) {
     const [hoveredCountry, setHoveredCountry] = useState<string | null>(null);
     const { toast } = useToast();
 
-
-    useEffect(() => {
-        const listeners = [
-            onSnapshot(query(collection(firestore, 'incidents'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
-                setIncidents(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Incident[])),
-            onSnapshot(query(collection(firestore, 'earthquakes'), orderBy('timestamp', 'desc'), limit(100)), (snapshot) => 
-                setEarthquakes(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Earthquake[])),
-            onSnapshot(query(collection(firestore, 'eonet_events'), orderBy('timestamp', 'desc'), limit(200)), (snapshot) => 
-                setEonetEvents(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as EonetEvent[])),
-            onSnapshot(query(collection(firestore, 'ships'), orderBy('timestamp', 'desc'), limit(1000)), (snapshot) => 
-                setShips(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Ship[])),
-            onSnapshot(query(collection(firestore, 'flights'), orderBy('timestamp', 'desc'), limit(500)), (snapshot) => 
-                setFlights(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as Flight[])),
-            onSnapshot(query(collection(firestore, 'weather'), limit(50)), (snapshot) => 
-                setWeather(snapshot.docs.map((doc: DocumentData) => ({ id: doc.id, ...doc.data() })) as WeatherUpdate[])),
-        ];
-
-        async function fetchIssPosition() {
-            try {
-                const response = await fetch('https://api.wheretheiss.at/v1/satellites/25544');
-                if (response.ok) {
-                    const data = await response.json();
-                    setIssPosition(data as IssPosition);
-                }
-            } catch (error) {
-                console.error("Error fetching ISS position:", error);
-            }
-        }
-
-        fetchIssPosition();
-        const issInterval = setInterval(fetchIssPosition, 5000);
-
-        fetch('https://raw.githubusercontent.com/vasturiano/react-globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
-            .then(res => res.json())
-            .then(setCountries)
-            .catch(err => console.error("Error fetching country data:", err));
-        
-        return () => {
-            listeners.forEach(unsubscribe => unsubscribe());
-            clearInterval(issInterval);
-        };
-    }, []);
-    
     const findCountry = useCallback((point3d: Vector3): any | null => {
         if (!countries.features.length) return null;
         const { lat, lon } = vector3ToLatLon(point3d, 5);
@@ -416,11 +380,8 @@ export default function GlobeView() {
     }, [findCountry, toast]);
 
 
-    const allIncidents = useMemo(() => [...incidents, ...eonetEvents], [incidents, eonetEvents]);
-
-
     return (
-        <div className="w-full h-screen relative bg-black">
+        <div className="w-full h-full relative bg-black">
             <Canvas camera={{ position: [0, 0, 15], fov: 45 }}>
                 <GlobeScene 
                     allIncidents={allIncidents}
@@ -435,15 +396,7 @@ export default function GlobeView() {
                     onClick={handleClick}
                 />
             </Canvas>
-            <div className="absolute top-4 left-4 z-10">
-                <Button variant="outline" asChild>
-                    <Link href="/">
-                        <Map className="mr-2 h-4 w-4" />
-                        2D Map View
-                    </Link>
-                </Button>
-            </div>
-            <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm">
+            <div className="absolute top-4 right-4 p-4 rounded-lg bg-black/50 text-white font-mono text-sm z-10">
                 <h3 className="font-bold text-primary mb-2">Global Stats</h3>
                 <p>Fires/Events: {allIncidents.length}</p>
                 <p>Earthquakes: {earthquakes.length}</p>
@@ -452,7 +405,7 @@ export default function GlobeView() {
                 <p>Weather Points: {weather.length}</p>
                 {issPosition && <p className="text-yellow-400 mt-2">ISS Altitude: {issPosition.altitude.toFixed(0)} km</p>}
             </div>
-             <div className="absolute bottom-4 left-4 p-2 rounded-lg bg-black/50 text-white font-mono text-xs">
+             <div className="absolute bottom-4 left-4 p-2 rounded-lg bg-black/50 text-white font-mono text-xs z-10">
                 <p>3D Globe View | SENTINEL</p>
             </div>
         </div>
