@@ -3,8 +3,8 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Sentinel Ukraine',
-  description: 'Real-time OSINT dashboard for Ukraine',
+  title: 'Sentinel Global',
+  description: 'Real-time OSINT dashboard for the world',
 };
 
 export default function RootLayout({

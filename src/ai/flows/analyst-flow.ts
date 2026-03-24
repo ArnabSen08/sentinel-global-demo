@@ -93,7 +93,7 @@ const analystFlow = ai.defineFlow(
     async (prompt) => {
         const llmResponse = await ai.generate({
             prompt: prompt,
-            model: 'googleai/gemini-2.5-flash',
+            model: 'openai/meta/llama-3.1-70b-instruct',
             tools: [getFiresTool, getEarthquakesTool, getNewsTool, getShipsTool, getFlightsTool, getStocksTool],
             config: {
                 // Lower temperature for more factual, less creative responses
@@ -125,7 +125,7 @@ const executiveBriefingFlow = ai.defineFlow(
         const prompt = "Provide a concise executive briefing of the most significant global events in the last few hours. Summarize major fires, earthquakes (over 4.5 magnitude), top 3 breaking news stories, and the performance of major stock indices.";
          const llmResponse = await ai.generate({
             prompt: prompt,
-            model: 'googleai/gemini-2.5-flash',
+            model: 'openai/meta/llama-3.1-70b-instruct',
             tools: [getFiresTool, getEarthquakesTool, getNewsTool, getStocksTool],
              config: {
                 temperature: 0.3,

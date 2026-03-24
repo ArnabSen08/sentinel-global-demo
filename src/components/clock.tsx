@@ -16,18 +16,18 @@ export function Clock() {
     return (
       <div className="flex gap-4 text-sm font-medium text-primary/80">
         <span>UTC: --:--:--</span>
-        <span>KYIV: --:--:--</span>
+        <span>IST: --:--:--</span>
       </div>
     );
   }
 
   const utcTime = format(time, 'HH:mm:ss', { timeZone: 'UTC' });
-  const kyivTime = format(time, 'HH:mm:ss', { timeZone: 'Europe/Kyiv' });
+  const istTime = format(time, 'HH:mm:ss', { timeZone: 'Asia/Kolkata' });
 
   return (
     <div className="flex gap-4 text-sm font-medium text-primary/80">
       <span>UTC: {utcTime}</span>
-      <span>KYIV: {kyivTime}</span>
+      <span>IST: {istTime}</span>
     </div>
   );
 }

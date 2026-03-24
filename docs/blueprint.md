@@ -1,12 +1,12 @@
-# **App Name**: Sentinel Ukraine
+# **App Name**: Sentinel Global
 
 ## Core Features:
 
-- 3D Interactive Globe: Render a high-performance 3D Earth globe using React Three Fiber and r3f-globe, with the camera defaulting to focus on Ukraine.
+- 3D Interactive Globe: Render a high-performance 3D Earth globe using React Three Fiber and r3f-globe.
 - Real-time Incident Spikes: Visualize incident data from Firestore by rendering vertical, glowing neon-red spikes at their precise GPS coordinates on the 3D globe.
 - Firestore Database Integration: Set up a Cloud Firestore database to store and manage all incident data.
-- Mock Data Generator: A Cloud Function to generate 10 random conflict points within Ukraine's borders and save them to Firestore for initial testing.
-- NASA FIRMS Data Polling: A background Cloud Function that polls the NASA FIRMS API every 30 minutes for thermal anomalies (fires/strikes) in the Ukraine region and saves them to Firestore. The provided NASA FIRMS API key 'e554047808a5fdc4922408d6a7a725d6' will be securely stored as an environment variable.
+- Mock Data Generator: A Cloud Function to generate random global conflict points and save them to Firestore for initial testing.
+- NASA FIRMS Data Polling: A background Cloud Function that polls the NASA FIRMS API every 30 minutes for thermal anomalies (fires/strikes) and saves them to Firestore. The provided NASA FIRMS API key will be securely stored as an environment variable.
 - Glass-morphism Incident List Panel: Display a glass-morphism style side panel listing the latest 5 incidents with their corresponding timestamps.
 - Firebase Deployment Setup: Configure the application for one-click deployment to Firebase App Hosting, including proper environment variable handling for the API key.
 
