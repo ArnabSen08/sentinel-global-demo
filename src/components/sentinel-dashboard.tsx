@@ -39,45 +39,74 @@ export default function SentinelDashboard() {
   const latestTwentyNews = news.slice(0, 20);
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-black">
+    <div className="min-h-screen w-full flex flex-col bg-black">
       <HudHeader 
         incidents={latestTwentyIncidents}
         news={latestTwentyNews}
       />
-      <main className="flex-1 flex flex-col overflow-hidden">
-        <div className="flex-[3] flex flex-col relative">
-           <div className="flex-1 relative border-b border-primary/20">
-             <GlobeView
-                  allIncidents={allIncidents}
-                  earthquakes={earthquakes}
-                  ships={ships}
-                  flights={flights}
-                  countries={countries}
-                  issPosition={issPosition}
-                  weather={weather}
-              />
-           </div>
-           <div className="flex-1 relative">
-             <MapView 
-                  incidents={incidents} 
-                  flights={flights}
-                  earthquakes={earthquakes}
-                  eonetEvents={eonetEvents}
-                  ships={ships}
-                  weather={weather}
-              />
-           </div>
-        </div>
-        <div className="flex-[2] border-t border-primary/20 bg-black/70 backdrop-blur-sm overflow-hidden">
-           <DataSidebar 
-              incidents={incidents}
-              earthquakes={earthquakes}
-              news={news}
-              ships={ships}
-              flights={flights}
-              stocks={[]}
-          />
-        </div>
+      <main className="flex-1 w-full max-w-7xl mx-auto p-4 md:p-8 flex flex-col gap-8">
+        
+        {/* Globe Section */}
+        <section className="flex flex-col gap-4">
+            <div className="flex justify-between items-end">
+                <div>
+                   <h2 className="text-2xl font-bold tracking-tight text-primary">Global Overview</h2>
+                   <p className="text-muted-foreground text-sm">3D interactive visualization of current active events.</p>
+                </div>
+            </div>
+            <div className="w-full h-[600px] md:h-[700px] rounded-xl border border-primary/20 bg-black/50 overflow-hidden relative shadow-[0_0_30px_rgba(0,0,0,0.5)] shadow-primary/5">
+                <GlobeView
+                    allIncidents={allIncidents}
+                    earthquakes={earthquakes}
+                    ships={ships}
+                    flights={flights}
+                    countries={countries}
+                    issPosition={issPosition}
+                    weather={weather}
+                />
+            </div>
+        </section>
+
+        {/* Flat Map Section */}
+        <section className="flex flex-col gap-4">
+            <div className="flex justify-between items-end">
+                <div>
+                   <h2 className="text-2xl font-bold tracking-tight text-primary">Tactical Map</h2>
+                   <p className="text-muted-foreground text-sm">Detailed 2D topographical view of incidents and traffic.</p>
+                </div>
+            </div>
+            <div className="w-full h-[600px] md:h-[700px] rounded-xl border border-primary/20 bg-black/50 overflow-hidden relative shadow-[0_0_30px_rgba(0,0,0,0.5)] shadow-primary/5">
+                <MapView 
+                    incidents={incidents} 
+                    flights={flights}
+                    earthquakes={earthquakes}
+                    eonetEvents={eonetEvents}
+                    ships={ships}
+                    weather={weather}
+                />
+            </div>
+        </section>
+
+        {/* Data & Intelligence Section */}
+         <section className="flex flex-col gap-4 mb-20">
+            <div className="flex justify-between items-end">
+                <div>
+                   <h2 className="text-2xl font-bold tracking-tight text-primary">Intelligence Hub</h2>
+                   <p className="text-muted-foreground text-sm">AI Analyst and raw data feeds.</p>
+                </div>
+            </div>
+            <div className="w-full h-[800px] rounded-xl border border-primary/20 bg-black/70 backdrop-blur-md overflow-hidden relative shadow-[0_0_30px_rgba(0,0,0,0.5)] shadow-primary/5">
+                <DataSidebar 
+                    incidents={incidents}
+                    earthquakes={earthquakes}
+                    news={news}
+                    ships={ships}
+                    flights={flights}
+                    stocks={[]}
+                />
+            </div>
+        </section>
+
       </main>
     </div>
   );
